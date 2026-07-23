@@ -26,5 +26,5 @@
       "@/*": ["src/*"]
     }
   },
-  "exclude": ["node_modules", "dist", "test"]
+  "exclude": ["node_modules", "dist", "test", "drizzle.config.ts", "vitest.config.ts", "vitest.integration.config.ts", "vitest.e2e.config.ts"]
 }
