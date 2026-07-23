@@ -1,7 +1,7 @@
 FROM node:24-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --ignore-scripts
+RUN npm ci
 COPY . .
 RUN npm run build
 
@@ -9,7 +9,7 @@ FROM node:24-alpine AS production
 WORKDIR /app
 RUN apk add --no-cache tini
 COPY package*.json ./
-RUN npm ci --omit=dev --ignore-scripts
+RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/infrastructure/database/migrations ./src/infrastructure/database/migrations
 USER node
