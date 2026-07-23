@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-RUN npx nest build
+RUN ./node_modules/.bin/nest build
 
 FROM node:24-alpine AS production
 WORKDIR /app
