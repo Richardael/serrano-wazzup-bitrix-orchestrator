@@ -7,7 +7,7 @@ RUN nest build
 
 FROM node:24-alpine AS production
 WORKDIR /app
-RUN apk add --no-cache tini
+RUN apk add --no-cache tini curl
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
@@ -16,5 +16,6 @@ USER node
 ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD curl -f http://localhost:3000/health || exit 1
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "dist/main.js"]
