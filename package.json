@@ -16,8 +16,7 @@
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:migrate": "npx ts-node src/infrastructure/database/migrate.ts",
-    "prepare": "npm run build"
+    "db:migrate": "npx ts-node src/infrastructure/database/migrate.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.28",
