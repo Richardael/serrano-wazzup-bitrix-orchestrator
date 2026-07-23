@@ -1,9 +1,12 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { Interval } from "@nestjs/schedule";
 import { QueuePort } from "../../application/ports/queue.port";
 import { ProcessIncomingMessageUseCase } from "../../application/use-cases/process-incoming-message.use-case";
 import { EventRepository } from "../../application/ports/event-repository.port";
 import { AppConfig } from "../../infrastructure/config/app.config";
+
+const QUEUE_PORT = "QUEUE_PORT";
+const EVENT_REPOSITORY = "EVENT_REPOSITORY";
 
 interface ProcessMessageJobPayload {
   eventId: string;
@@ -19,9 +22,9 @@ export class MessageWorker {
   private readonly logger = new Logger(MessageWorker.name);
 
   constructor(
-    private readonly queue: QueuePort,
+    @Inject(QUEUE_PORT) private readonly queue: QueuePort,
     private readonly useCase: ProcessIncomingMessageUseCase,
-    private readonly eventRepo: EventRepository,
+    @Inject(EVENT_REPOSITORY) private readonly eventRepo: EventRepository,
     private readonly config: AppConfig,
   ) {}
 
