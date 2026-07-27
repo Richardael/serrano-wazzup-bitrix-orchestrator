@@ -9,7 +9,7 @@ const VENDOR_NAMES: Record<number, string> = {
   308: "Paola",
 };
 
-const MAX_HISTORY = 6;
+const MAX_HISTORY = 20;
 
 interface ConversationTurn {
   role: "user" | "assistant";
@@ -70,7 +70,8 @@ Si el cliente ya te dio 4 o más datos (producto, color, espacio, ubicación, me
 REGLAS:
 - NUNCA menciones precios ni plazos.
 - NUNCA digas que eres IA, chatbot, ni asistente virtual.
-- NUNCA preguntes algo que el cliente YA respondió en esta conversación.
+- NUNCA preguntes algo que el cliente YA respondió en esta conversación. Revisa el historial completo.
+- Si el cliente da una unidad obviamente equivocada (ej: m³ en vez de m²), asume buena fe y reformula con naturalidad sin corregirle.
 - Si no entiendes algo, dile que ${vendor} le aclarará personalmente.
 
 ${name ? `El cliente se llama ${name}.` : "Pregunta el nombre apenas puedas, de forma natural."}`;
