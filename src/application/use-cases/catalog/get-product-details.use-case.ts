@@ -1,10 +1,10 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { CatalogRepositoryPort } from "../../ports/catalog-repository.port";
 import { CatalogProductDetails } from "../../../domain/catalog/catalog-product.entity";
 
 @Injectable()
 export class GetProductDetailsUseCase {
-  constructor(private readonly catalogRepo: CatalogRepositoryPort) {}
+  constructor(@Inject("CATALOG_REPOSITORY") private readonly catalogRepo: CatalogRepositoryPort) {}
 
   async execute(slug: string): Promise<CatalogProductDetails | null> {
     const product = await this.catalogRepo.findBySlug(slug);
