@@ -43,6 +43,12 @@ export class WazzupIngestController {
         for (const msg of messages) {
           this.logger.log(`Message keys: ${Object.keys(msg).join(", ")}`);
           this.logger.log(`Message: ${JSON.stringify(msg).slice(0, 500)}`);
+
+          if (!this.shouldProcess(msg)) {
+            this.logger.log(`Skipping message (outbound/echo/duplicate)`);
+            continue;
+          }
+
           const mappedPayload = this.mapToWebhookPayload(msg);
           if (mappedPayload) {
             this.logger.log(`Mapped payload: ${JSON.stringify(mappedPayload).slice(0, 500)}`);
@@ -110,6 +116,36 @@ export class WazzupIngestController {
         attachments: msg["attachments"] ?? msg["media"] ?? [],
       },
     };
+  }
+
+  private lastProcessed = new Map<string, number>();
+  private readonly COOLDOWN_MS = 8000;
+
+  private shouldProcess(msg: Record<string, unknown>): boolean {
+    const status = String(msg["status"] ?? msg["direction"] ?? "");
+    if (status === "outbound" || status === "outgoing") return false;
+
+    if (msg["isEcho"] === true) return false;
+
+    const chatId = String(msg["chatId"] ?? msg["chat_id"] ?? "");
+    const text = String(msg["text"] ?? msg["body"] ?? "");
+    if (!chatId || !text) return false;
+
+    const hash = `${chatId}:${text.slice(0, 80)}`;
+    const last = this.lastProcessed.get(hash);
+    const now = Date.now();
+    if (last && (now - last) < this.COOLDOWN_MS) return false;
+
+    this.lastProcessed.set(hash, now);
+
+    if (this.lastProcessed.size > 1000) {
+      const cutoff = now - 60000;
+      for (const [k, t] of this.lastProcessed) {
+        if (t < cutoff) this.lastProcessed.delete(k);
+      }
+    }
+
+    return true;
   }
 
   private sanitizePayload(obj: Record<string, unknown>): Record<string, unknown> {
