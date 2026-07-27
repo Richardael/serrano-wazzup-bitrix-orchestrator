@@ -76,8 +76,10 @@ export class WazzupIngestController {
   }
 
   private mapToWebhookPayload(msg: Record<string, unknown>): Record<string, unknown> | null {
-    const phone = msg["phone"] ?? msg["sender"] ?? msg["chatId"] ?? msg["contactPhone"] ?? msg["clientPhone"]
-      ?? msg["chat_id"] ?? msg["contact_phone"] ?? msg["from"];
+    const contact = (msg["contact"] ?? {}) as Record<string, unknown>;
+
+    const phone = contact["phone"] ?? msg["phone"] ?? msg["chatId"]
+      ?? msg["chat_id"] ?? msg["contactPhone"] ?? msg["contact_phone"] ?? msg["from"];
 
     if (!phone) {
       this.logger.warn(`Message without phone. Available keys: ${Object.keys(msg).join(", ")}`);
@@ -86,7 +88,7 @@ export class WazzupIngestController {
 
     this.logger.log(`Extracted phone: ${String(phone)}`);
 
-    const chatId = String(msg["chatId"] ?? msg["chat_id"] ?? msg["id"] ?? "");
+    const chatId = String(msg["chatId"] ?? msg["chat_id"] ?? contact["messengerChatId"] ?? msg["id"] ?? "");
     const channelId = String(msg["channelId"] ?? msg["channel_id"] ?? "");
 
     return {
@@ -94,13 +96,13 @@ export class WazzupIngestController {
       messageId: String(msg["id"] ?? msg["messageId"] ?? msg["message_id"] ?? ""),
       channelId,
       chatId,
-      direction: msg["direction"] === "outbound" || msg["type"] === "outgoing" ? "outbound" : "inbound",
-      messageType: msg["contentType"] === "image" || msg["content_type"] === "image" ? "image"
-        : msg["contentType"] === "video" || msg["content_type"] === "video" ? "video" : "text",
-      occurredAt: String(msg["timestamp"] ?? msg["createdAt"] ?? msg["created_at"] ?? new Date().toISOString()),
+      direction: msg["status"] === "outbound" || msg["direction"] === "outbound" || msg["type"] === "outgoing" ? "outbound" : "inbound",
+      messageType: msg["contentType"] === "image" || msg["content_type"] === "image" || msg["type"] === "image" ? "image"
+        : msg["contentType"] === "video" || msg["content_type"] === "video" || msg["type"] === "video" ? "video" : "text",
+      occurredAt: String(msg["dateTime"] ?? msg["timestamp"] ?? msg["createdAt"] ?? msg["created_at"] ?? new Date().toISOString()),
       contact: {
-        id: msg["contactId"] ?? msg["contact_id"] ?? null,
-        name: msg["contactName"] ?? msg["senderName"] ?? msg["sender_name"] ?? null,
+        id: contact["id"] ?? msg["contactId"] ?? msg["contact_id"] ?? null,
+        name: contact["name"] ?? msg["contactName"] ?? msg["senderName"] ?? msg["sender_name"] ?? null,
         phone: String(phone),
       },
       content: {
