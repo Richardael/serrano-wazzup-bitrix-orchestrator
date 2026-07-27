@@ -78,11 +78,11 @@ export class IncomingMessageHandler {
       const result = await this.handleWithDb(payload, normalizedMessage, maskedPhone);
       if (result.status === "lead_created" && chatId && isWazzupChannel) {
         const vendorId = parseInt(String(result.eventId ?? "0"), 10) || 0;
-        this.chatbot.handleIncomingMessage(
+        this.chatbot.handleMessage(
           normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, vendorId, true,
         ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
       } else if (result.status === "lead_reused" && chatId && isWazzupChannel) {
-        this.chatbot.handleIncomingMessage(
+        this.chatbot.handleMessage(
           normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, 0, false,
         ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
       }
@@ -92,7 +92,7 @@ export class IncomingMessageHandler {
       this.logger.warn(`DB unavailable (${dbMsg}) — processing message directly for ${maskedPhone}`);
       const result = await this.handleDirect(normalizedMessage, maskedPhone);
       if (result.status === "lead_created" && chatId && isWazzupChannel) {
-        this.chatbot.handleIncomingMessage(
+        this.chatbot.handleMessage(
           normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, 0, true,
         ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
       }

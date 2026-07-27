@@ -19,6 +19,7 @@ export const envSchema = z.object({
   MAX_WEBHOOK_BODY_BYTES: z.coerce.number().int().positive().default(1048576),
   JOB_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   WAZZUP_API_KEY: z.string().optional().default(""),
+  OPENROUTER_API_KEY: z.string().optional().default(""),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
