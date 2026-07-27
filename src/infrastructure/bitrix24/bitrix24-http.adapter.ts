@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { AppConfig } from "../config/app.config";
-import { Bitrix24Port, CreateLeadInput, BitrixStatus } from "../../application/ports/bitrix24.port";
+import { Bitrix24Port, CreateLeadInput, BitrixStatus, LeadUpdateFields } from "../../application/ports/bitrix24.port";
 import { LeadRecord } from "../../domain/leads/lead";
 import { maskPhoneForLog } from "../config/phone-normalizer";
 
@@ -108,6 +108,29 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
     }
 
     return String(data.result);
+  }
+
+  async updateLead(leadId: string, fields: LeadUpdateFields): Promise<void> {
+    const params: Record<string, unknown> = { id: leadId };
+
+    if (fields.statusId) {
+      params["fields[STATUS_ID]"] = fields.statusId;
+    }
+    if (fields.comments !== undefined) {
+      params["fields[COMMENTS]"] = fields.comments;
+    }
+    if (fields.ufFields) {
+      for (const [key, value] of Object.entries(fields.ufFields)) {
+        if (value !== null && value !== undefined) {
+          params[`fields[${key}]`] = value;
+        }
+      }
+    }
+
+    const data = await this.request<boolean>("crm.lead.update.json", params);
+    if (data.error) {
+      throw new Error(`Bitrix24 update error: ${data.error}`);
+    }
   }
 
   async getLeadStatuses(): Promise<BitrixStatus[]> {

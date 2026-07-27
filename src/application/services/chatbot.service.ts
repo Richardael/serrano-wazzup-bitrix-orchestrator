@@ -2,6 +2,7 @@ import { Injectable, Logger, Inject } from "@nestjs/common";
 import { WazzupPort } from "../ports/wazzup.port";
 import { AppConfig } from "../../infrastructure/config/app.config";
 import { OpenRouterAdapter } from "../../infrastructure/openrouter/openrouter.adapter";
+import { LeadIntelligenceService } from "./lead-intelligence.service";
 
 const VENDOR_NAMES: Record<number, string> = {
   206: "Tahi",
@@ -26,6 +27,7 @@ export class ChatbotService {
     @Inject("WAZZUP_PORT") private readonly wazzup: WazzupPort,
     private readonly config: AppConfig,
     private readonly ai: OpenRouterAdapter,
+    private readonly leadIntel: LeadIntelligenceService,
   ) {}
 
   async handleMessage(
@@ -35,6 +37,7 @@ export class ChatbotService {
     channelId: string,
     vendorId: number,
     isNewLead: boolean,
+    leadId: string,
   ): Promise<void> {
     if (!this.wazzup.isEnabled || !chatId || !channelId) return;
     if (!channelId.startsWith("f207")) return;
@@ -114,6 +117,12 @@ ${name ? `El cliente se llama ${name}.` : "Pregunta el nombre apenas puedas, de 
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         this.logger.error(`Failed to send AI response: ${msg}`);
+      }
+
+      if (leadId) {
+        const simpleHistory = turns.map((t) => ({ role: t.role, content: t.content }));
+        this.leadIntel.updateLeadFromHistory(leadId, simpleHistory)
+          .catch((e: unknown) => this.logger.error(`Lead intelligence error: ${e}`));
       }
     }
 

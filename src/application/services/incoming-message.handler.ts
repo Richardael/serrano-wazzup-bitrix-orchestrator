@@ -76,19 +76,19 @@ export class IncomingMessageHandler {
 
     try {
       const result = await this.handleWithDb(payload, normalizedMessage, maskedPhone);
-      await this.callChatbot(result.status, normalizedMessage, messageText, chatId, channelId);
+      await this.callChatbot(result, normalizedMessage, messageText, chatId, channelId);
       return result;
     } catch (dbErr: unknown) {
       const dbMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
       this.logger.warn(`DB unavailable (${dbMsg}) — processing message directly for ${maskedPhone}`);
       const result = await this.handleDirect(normalizedMessage, maskedPhone);
-      await this.callChatbot(result.status, normalizedMessage, messageText, chatId, channelId);
+      await this.callChatbot(result, normalizedMessage, messageText, chatId, channelId);
       return result;
     }
   }
 
   private async callChatbot(
-    status: string,
+    result: { status: string; eventId?: string },
     msg: NormalizedIncomingMessage,
     messageText: string | undefined,
     chatId: string | undefined,
@@ -96,15 +96,12 @@ export class IncomingMessageHandler {
   ): Promise<void> {
     if (!chatId || !channelId || !channelId.startsWith("f207")) return;
 
-    if (status === "lead_created") {
-      this.chatbot.handleMessage(
-        msg.contact.displayName, messageText ?? "", chatId, channelId, this.lastVendorId, true,
-      ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
-    } else if (status === "lead_reused") {
-      this.chatbot.handleMessage(
-        msg.contact.displayName, messageText ?? "", chatId, channelId, this.lastVendorId, false,
-      ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
-    }
+    const leadId = result.eventId ?? "";
+    const isNew = result.status === "lead_created";
+
+    this.chatbot.handleMessage(
+      msg.contact.displayName, messageText ?? "", chatId, channelId, this.lastVendorId, isNew, leadId,
+    ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
   }
 
   private async handleWithDb(

@@ -5,8 +5,15 @@ export interface Bitrix24Port {
   findLeadsByPhone(normalizedPhone: string): Promise<LeadRecord[]>;
   getLead(leadId: string): Promise<LeadRecord | null>;
   createLead(input: CreateLeadInput): Promise<string>;
+  updateLead(leadId: string, fields: LeadUpdateFields): Promise<void>;
   getLeadStatuses(): Promise<BitrixStatus[]>;
   getLeadSources(): Promise<BitrixStatus[]>;
+}
+
+export interface LeadUpdateFields {
+  statusId?: string;
+  comments?: string | null;
+  ufFields?: Record<string, string | number | boolean | null>;
 }
 
 export interface CreateLeadInput {
