@@ -99,8 +99,7 @@ export class MigrationRunner implements OnModuleInit {
       this.logger.log("Database migrations applied successfully");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Migration failed: ${msg}`);
-      throw err;
+      this.logger.error(`Migration failed (non-fatal): ${msg}`);
     }
   }
 }
