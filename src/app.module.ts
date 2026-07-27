@@ -13,6 +13,7 @@ import { HealthController } from "./interfaces/http/health.controller";
 import { WazzupWebhookController } from "./interfaces/webhooks/wazzup-webhook.controller";
 import { MessageWorker } from "./interfaces/webhooks/message.worker";
 import { MigrationRunner } from "./infrastructure/database/migration-runner";
+import { WazzupHttpAdapter } from "./infrastructure/wazzup/wazzup-http.adapter";
 
 const BITRIX24_PORT = "BITRIX24_PORT";
 const EVENT_REPOSITORY = "EVENT_REPOSITORY";
@@ -79,6 +80,7 @@ const QUEUE_PORT = "QUEUE_PORT";
     },
     MessageWorker,
     MigrationRunner,
+    WazzupHttpAdapter,
   ],
 })
 export class AppModule {}
