@@ -116,7 +116,7 @@ export class IncomingMessageHandler {
 
     const directResult = await this.handleDirect(normalizedMessage, maskedPhone);
 
-    return { status: directResult.status, eventId: event.id };
+    return { status: "OK_v2_handleWithDb", eventId: event.id };
   }
 
   private async handleDirect(
