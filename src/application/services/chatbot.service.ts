@@ -121,7 +121,8 @@ ${name ? `El cliente se llama ${name}.` : "Pregunta el nombre apenas puedas, de 
 
       if (leadId) {
         const simpleHistory = turns.map((t) => ({ role: t.role, content: t.content }));
-        this.leadIntel.updateLeadFromHistory(leadId, simpleHistory)
+        const vendor = VENDOR_NAMES[vendorId] ?? "";
+        this.leadIntel.updateLeadFromHistory(leadId, simpleHistory, contactName, vendor)
           .catch((e: unknown) => this.logger.error(`Lead intelligence error: ${e}`));
       }
     }

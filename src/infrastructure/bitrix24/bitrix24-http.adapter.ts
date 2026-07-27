@@ -113,6 +113,9 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
   async updateLead(leadId: string, fields: LeadUpdateFields): Promise<void> {
     const params: Record<string, unknown> = { id: leadId };
 
+    if (fields.title) {
+      params["fields[TITLE]"] = fields.title;
+    }
     if (fields.statusId) {
       params["fields[STATUS_ID]"] = fields.statusId;
     }

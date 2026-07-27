@@ -11,6 +11,7 @@ export interface Bitrix24Port {
 }
 
 export interface LeadUpdateFields {
+  title?: string;
   statusId?: string;
   comments?: string | null;
   ufFields?: Record<string, string | number | boolean | null>;

@@ -71,6 +71,8 @@ export class LeadIntelligenceService {
   async updateLeadFromHistory(
     leadId: string,
     history: Array<{ role: "user" | "assistant"; content: string }>,
+    contactName: string | null,
+    vendorName: string,
   ): Promise<number> {
     this.logger.log(`updateLeadFromHistory called: leadId=${leadId}, historyLen=${history.length}, aiEnabled=${this.ai.isEnabled}`);
 
@@ -108,8 +110,26 @@ export class LeadIntelligenceService {
     const existingComments = existingLead ? "" : "";
     const now = new Date().toLocaleString("es-VE", { timeZone: "America/Caracas" });
 
+    const titleParts: string[] = [];
+
+    if (extracted.rubro) {
+      const mapped = RUBRO_MAP[extracted.rubro.toLowerCase().trim()];
+      titleParts.push(mapped ?? extracted.rubro);
+    } else {
+      titleParts.push("WhatsApp");
+    }
+
+    const name = contactName ?? "";
+    if (name) titleParts.push(name);
+
+    if (vendorName) titleParts.push(vendorName);
+
+    const newTitle = titleParts.join(" / ");
+
     try {
       const updateFields: LeadUpdateFields = { statusId: "IN_PROCESS" };
+
+      updateFields.title = newTitle;
 
       if (commentLines.length > 0) {
         updateFields.comments = `[Chatbot ${now}]\n${commentLines.join("\n")}`;
