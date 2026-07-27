@@ -30,11 +30,13 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
   }
 
   async findLeadsByPhone(normalizedPhone: string): Promise<LeadRecord[]> {
-    const data = await this.request<Record<string, number[]>>("crm.duplicate.findbycomm.json", {
+    const params: Record<string, unknown> = {
       entity_type: "LEAD",
       type: "PHONE",
-      values: [normalizedPhone],
-    });
+    };
+    params["values[0]"] = normalizedPhone;
+
+    const data = await this.request<Record<string, number[]>>("crm.duplicate.findbycomm.json", params);
 
     const leadIds = data.result?.["LEAD"] ?? [];
     const records: LeadRecord[] = [];
