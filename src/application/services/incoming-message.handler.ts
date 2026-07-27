@@ -114,7 +114,9 @@ export class IncomingMessageHandler {
 
     await this.queue.enqueue("process-incoming-message", jobPayload);
 
-    return { status: "accepted", eventId: event.id };
+    const directResult = await this.handleDirect(normalizedMessage, maskedPhone);
+
+    return { status: directResult.status, eventId: event.id };
   }
 
   private async handleDirect(
