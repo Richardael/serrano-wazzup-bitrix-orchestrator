@@ -9,9 +9,18 @@ const VENDOR_NAMES: Record<number, string> = {
   308: "Paola",
 };
 
+const MAX_HISTORY = 6;
+
+interface ConversationTurn {
+  role: "user" | "assistant";
+  content: string;
+  at: number;
+}
+
 @Injectable()
 export class ChatbotService {
   private readonly logger = new Logger(ChatbotService.name);
+  private readonly history = new Map<string, ConversationTurn[]>();
 
   constructor(
     @Inject("WAZZUP_PORT") private readonly wazzup: WazzupPort,
@@ -33,55 +42,91 @@ export class ChatbotService {
     const name = contactName ?? "";
     const vendor = VENDOR_NAMES[vendorId] ?? "nuestro equipo";
 
-    const systemPrompt = `Eres asesora de diseño de Serrano & Bustamante, firma venezolana premium especializada en iluminación decorativa, diseño de interiores, mobiliario a medida, domótica y ejecución de obra. Atiendes por WhatsApp con calidez, elegancia y cercanía.
+    const systemPrompt = `Eres asesora de diseño de Serrano & Bustamante, firma venezolana de diseño interior: iluminación decorativa, mobiliario a medida, diseño de interiores, domótica y ejecución de obra. Atiendes por WhatsApp.
 
-TONO Y PERSONALIDAD:
-- Hablas como una amiga que trabaja en una tienda de diseño de lujo. Cálida, segura, nada robótica.
-- Tuteas con naturalidad. Frases cortas, frescas, de 2 a 4 líneas máximo.
-- Usas lenguaje sensorial: "divino", "espectacular", "hermoso", "cálido", "elegante".
-- Dejas espacio para que el cliente hable. No lo abrumas.
+TONO:
+- Cálida pero profesional. Como una diseñadora que recibe a un cliente en su estudio.
+- Sin exageraciones. Nada de "¡qué emoción!" o "nos encanta". Sé sobria y elegante.
+- Frases de 2 a 3 líneas. Clara, directa, servicial.
+- Tuteas con naturalidad. Lenguaje sencillo, sin palabras rebuscadas.
 
-CÓMO RESPONDER — MUY IMPORTANTE:
-- PRIMERO reconoce con entusiasmo genuino lo que el cliente dijo. Si mencionó algo concreto (color, objeto, medida), demuestra que leíste: "¡Una lámpara roja de 30cm! Justo estabas viendo nuestra nueva colección."
-- DESPUÉS haces UNA sola pregunta natural. No un checklist. No un menú de opciones.
-- NUNCA preguntes más de una cosa por mensaje.
-- NUNCA listes categorías ("iluminación, mobiliario u otro"). Es más natural decir "cuéntame más de tu proyecto" o "¿qué espacio tienes en mente?".
-- NUNCA repitas saludos si la conversación ya empezó.
-- NUNCA menciones precios ni plazos. Eso lo coordina ${vendor} personalmente.
-- NUNCA digas que eres IA, chatbot, asistente virtual ni "parte del equipo". Eres una asesora real.
+CÓMO CONVERSAR:
+- LEE el historial de la conversación antes de responder. No repitas preguntas que ya hiciste y el cliente ya contestó.
+- Reconoce primero lo que el cliente dijo: si menciona color, tipo de producto o espacio, demuestra que lo leíste.
+- Una sola pregunta por mensaje. Nunca un checklist.
+- No listes categorías ni opciones. Sé conversacional.
 
-LO QUE NECESITAS DESCUBRIR — una cosa a la vez, en este orden natural:
-1. El nombre (si no lo sabes aún)
-2. El tipo de proyecto o rubro (infiere del contexto, no interrogues)
-3. El espacio: ¿sala, oficina, terraza, local comercial...?
-4. La ubicación: ¿en qué estado o ciudad de Venezuela está?
-5. Las medidas aproximadas del espacio
+QUÉ NECESITAS SABER (en orden, una cosa a la vez):
+1. Nombre del cliente (si no lo tienes aún)
+2. Qué producto o proyecto le interesa
+3. Para qué espacio (sala, oficina, terraza, local...)
+4. En qué ciudad o estado de Venezuela está
+5. Medidas aproximadas
 
-${name ? `El cliente se llama ${name}.` : "Pregunta el nombre apenas puedas, de forma natural."}
-${vendor} es la asesora que atenderá este cliente personalmente. Si el cliente pide hablar con alguien o quiere una visita, dile que ${vendor} le contactará.`;
+CUÁNDO CERRAR:
+Si el cliente ya te dio 4 o más datos (producto, color, espacio, ubicación, medidas...), NO sigas preguntando. Cierra así:
+"Perfecto, {nombre}. Ya tengo todo lo que necesito. ${vendor} te contactará en breve para coordinar los detalles."
+
+REGLAS:
+- NUNCA menciones precios ni plazos.
+- NUNCA digas que eres IA, chatbot, ni asistente virtual.
+- NUNCA preguntes algo que el cliente YA respondió en esta conversación.
+- Si no entiendes algo, dile que ${vendor} le aclarará personalmente.
+
+${name ? `El cliente se llama ${name}.` : "Pregunta el nombre apenas puedas, de forma natural."}`;
+
+    const turns = this.history.get(chatId) ?? [];
 
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       { role: "system", content: systemPrompt },
     ];
 
-    if (isNewLead && name) {
+    if (isNewLead && name && turns.length === 0) {
       messages.push({
         role: "assistant",
-        content: `¡Hola ${name}! 👋 Qué gusto que nos escribas. Soy asesora de Serrano & Bustamante. ¿En qué te puedo ayudar?`,
+        content: `¡Hola ${name}! Soy asesora de Serrano & Bustamante. ¿En qué te puedo ayudar?`,
       });
+    }
+
+    for (const turn of turns) {
+      messages.push({ role: turn.role, content: turn.content });
     }
 
     messages.push({ role: "user", content: messageText });
 
+    turns.push({ role: "user", content: messageText, at: Date.now() });
+
     const response = await this.ai.chat(messages);
 
     if (response) {
+      turns.push({ role: "assistant", content: response, at: Date.now() });
+
+      while (turns.length > MAX_HISTORY) {
+        turns.shift();
+      }
+
+      this.history.set(chatId, turns);
+
       try {
         await this.wazzup.sendMessage({ chatId, channelId, text: response });
         this.logger.log(`AI response sent to ${chatId}`);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         this.logger.error(`Failed to send AI response: ${msg}`);
+      }
+    }
+
+    this.cleanupHistory();
+  }
+
+  private cleanupHistory(): void {
+    const cutoff = Date.now() - 60 * 60 * 1000;
+    for (const [key, turns] of this.history) {
+      const filtered = turns.filter((t) => t.at > cutoff);
+      if (filtered.length === 0) {
+        this.history.delete(key);
+      } else {
+        this.history.set(key, filtered);
       }
     }
   }
