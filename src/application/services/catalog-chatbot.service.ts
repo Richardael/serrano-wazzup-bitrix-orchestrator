@@ -36,9 +36,9 @@ export class CatalogChatbotService {
     private readonly ai: OpenRouterAdapter,
     private readonly planner: ConversationPlanner,
     private readonly leadIntel: LeadIntelligenceService,
-    private readonly searchCatalog: SearchCatalogUseCase,
-    private readonly getProductDetails: GetProductDetailsUseCase,
-    private readonly stateRepo: ConversationStatePort,
+    @Inject("CATALOG_REPOSITORY") private readonly searchCatalog: SearchCatalogUseCase,
+    @Inject("CATALOG_REPOSITORY") private readonly getProductDetails: GetProductDetailsUseCase,
+    @Inject("CONVERSATION_STATE") private readonly stateRepo: ConversationStatePort,
   ) {}
 
   async handleMessage(

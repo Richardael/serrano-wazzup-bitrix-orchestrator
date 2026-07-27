@@ -68,6 +68,14 @@ const CONVERSATION_STATE = "CONVERSATION_STATE";
       useClass: WazzupHttpAdapter,
     },
     {
+      provide: CATALOG_REPOSITORY,
+      useClass: DrizzleCatalogRepository,
+    },
+    {
+      provide: CONVERSATION_STATE,
+      useClass: DrizzleConversationStateRepository,
+    },
+    {
       provide: ProcessIncomingMessageUseCase,
       useFactory: (
         config: AppConfig,
