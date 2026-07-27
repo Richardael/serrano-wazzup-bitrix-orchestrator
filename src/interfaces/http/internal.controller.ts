@@ -7,10 +7,23 @@ interface StoredPayload {
   full: Record<string, unknown>;
 }
 
+interface StoredUpdate {
+  at: string;
+  leadId: string;
+  contactName: string | null;
+  vendorName: string;
+  historyLength: number;
+  extracted: Record<string, unknown> | null;
+  camposLlenos: number;
+  updated: boolean;
+  error?: string;
+}
+
 @Controller("internal")
 export class InternalController {
   static lastPayload: StoredPayload | null = null;
   static lastMessages: Array<{ keys: string[]; preview: string }> = [];
+  static lastUpdate: StoredUpdate | null = null;
 
   @Get("last-payload")
   getLastPayload(): StoredPayload | { message: string } {
@@ -26,5 +39,13 @@ export class InternalController {
       return { message: "No messages received yet" };
     }
     return InternalController.lastMessages;
+  }
+
+  @Get("last-update")
+  getLastUpdate(): StoredUpdate | { message: string } {
+    if (!InternalController.lastUpdate) {
+      return { message: "No lead update attempted yet" };
+    }
+    return InternalController.lastUpdate;
   }
 }
