@@ -13,50 +13,63 @@ interface ExtractedData {
   camposLlenos: number;
 }
 
-const RUBRO_MAP: Record<string, string> = {
-  "iluminación": "Iluminacion",
-  "iluminacion": "Iluminacion",
-  "mobiliario": "Mobiliario",
-  "domótica": "Domotica",
-  "domotica": "Domotica",
-  "redes": "Redes",
-  "diseño de interiores": "Diseño de interiores",
-  "diseño interior": "Diseño de interiores",
-  "papel tapiz": "Papel tapiz",
-  "papel": "Papel tapiz",
-  "paneles": "Paneles",
-  "ejecución de obra": "Ejecución de obra",
-  "ejecucion de obra": "Ejecución de obra",
+const RUBRO_MAP: Record<string, number> = {
+  "iluminación": 282,
+  "iluminacion": 282,
+  "mobiliario": 284,
+  "domótica": 286,
+  "domotica": 286,
+  "redes": 288,
+  "diseño de interiores": 290,
+  "diseño interior": 290,
+  "papel tapiz": 294,
+  "papel": 294,
+  "paneles": 296,
+  "ejecución de obra": 292,
+  "ejecucion de obra": 292,
 };
 
-const ESTADO_MAP: Record<string, string> = {
-  "caracas": "Distrito Capital",
-  "distrito capital": "Distrito Capital",
-  "miranda": "Miranda",
-  "zulia": "Zulia",
-  "maracaibo": "Zulia",
-  "valencia": "Carabobo",
-  "carabobo": "Carabobo",
-  "aragua": "Aragua",
-  "maracay": "Aragua",
-  "lara": "Lara",
-  "barquisimeto": "Lara",
-  "anzoátegui": "Anzoátegui",
-  "anzoategui": "Anzoátegui",
-  "barcelona": "Anzoátegui",
-  "puerto la cruz": "Anzoátegui",
-  "bolívar": "Bolívar",
-  "bolivar": "Bolívar",
-  "margarita": "Nueva Esparta",
-  "nueva esparta": "Nueva Esparta",
-  "mérida": "Mérida",
-  "merida": "Mérida",
-  "táchira": "Táchira",
-  "tachira": "Táchira",
-  "falcon": "Falcón",
-  "sucre": "Sucre",
-  "la guaira": "La Guaira",
-  "vargas": "La Guaira",
+const ESTADO_MAP: Record<string, number> = {
+  "amazonas": 232,
+  "anzoátegui": 234,
+  "anzoategui": 234,
+  "puerto la cruz": 234,
+  "barcelona": 234,
+  "apure": 236,
+  "aragua": 238,
+  "maracay": 238,
+  "barinas": 240,
+  "bolívar": 242,
+  "bolivar": 242,
+  "carabobo": 244,
+  "valencia": 244,
+  "cojedes": 246,
+  "delta amacuro": 248,
+  "falcón": 250,
+  "falcon": 250,
+  "guárico": 252,
+  "guarico": 252,
+  "lara": 254,
+  "barquisimeto": 254,
+  "la guaira": 256,
+  "vargas": 256,
+  "mérida": 258,
+  "merida": 258,
+  "miranda": 260,
+  "monagas": 262,
+  "nueva esparta": 264,
+  "margarita": 264,
+  "portuguesa": 266,
+  "sucre": 268,
+  "táchira": 270,
+  "tachira": 270,
+  "trujillo": 272,
+  "yaracuy": 274,
+  "zulia": 276,
+  "maracaibo": 276,
+  "distrito capital": 278,
+  "caracas": 278,
+  "dependencias federales": 280,
 };
 
 @Injectable()
@@ -92,16 +105,21 @@ export class LeadIntelligenceService {
     this.logger.log(`Updating lead ${leadId} with ${extracted.camposLlenos} fields`);
 
     const commentLines: string[] = [];
+    const extraParams: Record<string, string> = {};
 
     if (extracted.rubro) {
-      const mapped = RUBRO_MAP[extracted.rubro.toLowerCase().trim()];
-      commentLines.push(`Rubro: ${mapped ?? extracted.rubro}`);
+      const id = RUBRO_MAP[extracted.rubro.toLowerCase().trim()];
+      if (id) extraParams["fields[UF_CRM_RUBRO]"] = String(id);
     }
+
     if (extracted.estado || extracted.ciudad) {
       const loc = (extracted.estado ?? extracted.ciudad ?? "").toLowerCase().trim();
-      const mapped = Object.entries(ESTADO_MAP).find(([k]) => loc.includes(k));
-      commentLines.push(`Ubicación: ${mapped ? mapped[1] : (extracted.estado ?? extracted.ciudad)}`);
+      const entry = Object.entries(ESTADO_MAP).find(([k]) => loc.includes(k));
+      const id = entry?.[1];
+      if (id !== undefined) extraParams["fields[UF_CRM_ESTADO_VENEZUELA]"] = String(id);
+      else commentLines.push(`Ubicación: ${extracted.estado ?? extracted.ciudad}`);
     }
+
     if (extracted.espacio) commentLines.push(`Espacio: ${extracted.espacio}`);
     if (extracted.producto) commentLines.push(`Producto: ${extracted.producto}`);
     if (extracted.medidas) commentLines.push(`Medidas: ${extracted.medidas}`);
@@ -113,8 +131,7 @@ export class LeadIntelligenceService {
     const titleParts: string[] = [];
 
     if (extracted.rubro) {
-      const mapped = RUBRO_MAP[extracted.rubro.toLowerCase().trim()];
-      titleParts.push(mapped ?? extracted.rubro);
+      titleParts.push(extracted.rubro);
     } else {
       titleParts.push("WhatsApp");
     }
@@ -130,6 +147,10 @@ export class LeadIntelligenceService {
       const updateFields: LeadUpdateFields = { statusId: "IN_PROCESS" };
 
       updateFields.title = newTitle;
+
+      if (Object.keys(extraParams).length > 0) {
+        updateFields.extraParams = extraParams;
+      }
 
       if (commentLines.length > 0) {
         updateFields.comments = `[Chatbot ${now}]\n${commentLines.join("\n")}`;
