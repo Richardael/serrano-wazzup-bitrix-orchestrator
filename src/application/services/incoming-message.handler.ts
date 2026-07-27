@@ -9,10 +9,27 @@ import { PhoneLinkRepository } from "../../application/ports/phone-link-reposito
 import { WazzupWebhookPayload } from "../../interfaces/webhooks/wazzup-webhook.schema";
 import { NormalizedIncomingMessage } from "../../domain/messages/normalized-message";
 import { normalizePhoneNumber, maskPhoneForLog } from "../../infrastructure/config/phone-normalizer";
+import { ChatbotService } from "./chatbot.service";
 
 const EVENT_RETENTION_WINDOW_MS = 5 * 60 * 1000;
 const PROVIDER = "WAZZUP";
 const INACTIVE_LEAD_STATUSES = new Set(["CONVERTED", "JUNK"]);
+
+const VENDOR_NAMES: Record<number, string> = {
+  206: "Tahi",
+  268: "Sabrina",
+  308: "Paola",
+};
+
+function vendorShortName(vendorId: number): string {
+  return VENDOR_NAMES[vendorId] ?? String(vendorId);
+}
+
+function buildLeadTitle(contactName: string | null, phone: string, vendorId: number): string {
+  const name = contactName ?? phone;
+  const vendor = vendorShortName(vendorId);
+  return `WhatsApp / ${name} / ${vendor}`;
+}
 
 interface ProcessMessageJobPayload {
   eventId: string;
@@ -34,6 +51,7 @@ export class IncomingMessageHandler {
     private readonly queue: QueuePort,
     private readonly bitrix24: Bitrix24Port,
     private readonly phoneLinkRepo: PhoneLinkRepository,
+    private readonly chatbot: ChatbotService,
   ) {}
 
   async handle(payload: WazzupWebhookPayload): Promise<{ status: string; eventId?: string }> {
@@ -50,13 +68,35 @@ export class IncomingMessageHandler {
     }
 
     const maskedPhone = maskPhoneForLog(normalizedMessage.contact.normalizedPhone);
+    const chatId = (payload as Record<string, unknown>)["chatId"] as string | undefined;
+    const contentObj = ((payload as Record<string, unknown>)["content"] ?? {}) as Record<string, unknown>;
+    const messageText = contentObj["text"] as string | undefined;
+    const channelId = (payload as Record<string, unknown>)["channelId"] as string | undefined;
+    const isWazzupChannel = channelId && channelId.startsWith("f207");
 
     try {
-      return await this.handleWithDb(payload, normalizedMessage, maskedPhone);
+      const result = await this.handleWithDb(payload, normalizedMessage, maskedPhone);
+      if (result.status === "lead_created" && chatId && isWazzupChannel) {
+        const vendorId = parseInt(String(result.eventId ?? "0"), 10) || 0;
+        this.chatbot.handleIncomingMessage(
+          normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, vendorId, true,
+        ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
+      } else if (result.status === "lead_reused" && chatId && isWazzupChannel) {
+        this.chatbot.handleIncomingMessage(
+          normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, 0, false,
+        ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
+      }
+      return result;
     } catch (dbErr: unknown) {
       const dbMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
       this.logger.warn(`DB unavailable (${dbMsg}) — processing message directly for ${maskedPhone}`);
-      return await this.handleDirect(normalizedMessage, maskedPhone);
+      const result = await this.handleDirect(normalizedMessage, maskedPhone);
+      if (result.status === "lead_created" && chatId && isWazzupChannel) {
+        this.chatbot.handleIncomingMessage(
+          normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, 0, true,
+        ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
+      }
+      return result;
     }
   }
 
@@ -130,7 +170,7 @@ export class IncomingMessageHandler {
     if (leads.length === 0) {
       this.logger.log(`No leads for ${maskedPhone} — creating new lead directly`);
       const vendorId = this.getNextVendor();
-      const title = `[WhatsApp] ${normalizedMessage.contact.displayName ?? normalizedPhone} — ${new Date().toISOString().split("T")[0]}`;
+      const title = buildLeadTitle(normalizedMessage.contact.displayName, normalizedPhone, vendorId);
 
       const leadId = await this.bitrix24.createLead({
         title,
@@ -159,7 +199,7 @@ export class IncomingMessageHandler {
     if (activeLeads.length === 0) {
       this.logger.log(`All leads closed for ${maskedPhone} — creating new lead`);
       const vendorId = this.getNextVendor();
-      const title = `[WhatsApp] ${normalizedMessage.contact.displayName ?? normalizedPhone} — ${new Date().toISOString().split("T")[0]}`;
+      const title = buildLeadTitle(normalizedMessage.contact.displayName, normalizedPhone, vendorId);
 
       const leadId = await this.bitrix24.createLead({
         title,

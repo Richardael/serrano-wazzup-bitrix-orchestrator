@@ -77,9 +77,14 @@ export class WazzupIngestController {
 
     this.logger.log(`Extracted phone: ${String(phone)}`);
 
+    const chatId = String(msg["chatId"] ?? msg["chat_id"] ?? msg["id"] ?? "");
+    const channelId = String(msg["channelId"] ?? msg["channel_id"] ?? "");
+
     return {
       eventId: String(msg["id"] ?? msg["messageId"] ?? msg["message_id"] ?? ""),
       messageId: String(msg["id"] ?? msg["messageId"] ?? msg["message_id"] ?? ""),
+      channelId,
+      chatId,
       direction: msg["direction"] === "outbound" || msg["type"] === "outgoing" ? "outbound" : "inbound",
       messageType: msg["contentType"] === "image" || msg["content_type"] === "image" ? "image"
         : msg["contentType"] === "video" || msg["content_type"] === "video" ? "video" : "text",

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { WazzupPort, SendMessageInput } from "../../application/ports/wazzup.port";
 
 interface WazzupChannel {
   channelId: string;
@@ -19,7 +20,7 @@ interface WazzupWebhookConfig {
 }
 
 @Injectable()
-export class WazzupHttpAdapter {
+export class WazzupHttpAdapter implements WazzupPort {
   private readonly logger = new Logger(WazzupHttpAdapter.name);
   private readonly baseUrl = "https://api.wazzup24.com/v3";
   private readonly apiKey: string;
@@ -50,6 +51,18 @@ export class WazzupHttpAdapter {
     return this.request<WazzupWebhookConfig>("webhooks", {
       method: "PATCH",
       body: JSON.stringify({ webhooksUri: uri, subscriptions }),
+    });
+  }
+
+  async sendMessage(input: SendMessageInput): Promise<void> {
+    this.logger.log(`Sending message to chat ${input.chatId} via channel ${input.channelId}`);
+    await this.request<unknown>("message", {
+      method: "POST",
+      body: JSON.stringify({
+        chatId: input.chatId,
+        channelId: input.channelId,
+        text: input.text,
+      }),
     });
   }
 

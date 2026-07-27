@@ -85,7 +85,7 @@ export class ProcessIncomingMessageUseCase {
   ): Promise<void> {
     const vendorId = await this.assignVendor();
 
-    const title = this.buildLeadTitle(message);
+    const title = this.buildLeadTitle(message, vendorId);
 
     const leadId = await this.bitrix24.createLead({
       title,
@@ -119,10 +119,11 @@ export class ProcessIncomingMessageUseCase {
     return vendorIds[vendorIndex]!;
   }
 
-  private buildLeadTitle(message: NormalizedIncomingMessage): string {
+  private buildLeadTitle(message: NormalizedIncomingMessage, vendorId: number): string {
     const name = message.contact.displayName ?? message.contact.normalizedPhone;
-    const date = new Date().toISOString().split("T")[0];
-    return `[WhatsApp] ${name} — ${date}`;
+    const vendorNames: Record<number, string> = { 206: "Tahi", 268: "Sabrina", 308: "Paola" };
+    const vendor = vendorNames[vendorId] ?? String(vendorId);
+    return `WhatsApp / ${name} / ${vendor}`;
   }
 
   private async linkPhoneToLead(normalizedPhone: string, leadId: string): Promise<void> {

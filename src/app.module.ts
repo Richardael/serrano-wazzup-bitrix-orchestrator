@@ -15,6 +15,7 @@ import { WazzupIngestController } from "./interfaces/webhooks/wazzup-ingest.cont
 import { MessageWorker } from "./interfaces/webhooks/message.worker";
 import { MigrationRunner } from "./infrastructure/database/migration-runner";
 import { WazzupHttpAdapter } from "./infrastructure/wazzup/wazzup-http.adapter";
+import { ChatbotService } from "./application/services/chatbot.service";
 
 const BITRIX24_PORT = "BITRIX24_PORT";
 const EVENT_REPOSITORY = "EVENT_REPOSITORY";
@@ -78,12 +79,14 @@ const QUEUE_PORT = "QUEUE_PORT";
         queue: PgQueueAdapter,
         bitrix24: Bitrix24HttpAdapter,
         phoneLinkRepo: PgPhoneLinkRepository,
-      ) => new IncomingMessageHandler(config, eventRepo, queue, bitrix24, phoneLinkRepo),
-      inject: [AppConfig, EVENT_REPOSITORY, QUEUE_PORT, BITRIX24_PORT, PHONE_LINK_REPOSITORY],
+        chatbot: ChatbotService,
+      ) => new IncomingMessageHandler(config, eventRepo, queue, bitrix24, phoneLinkRepo, chatbot),
+      inject: [AppConfig, EVENT_REPOSITORY, QUEUE_PORT, BITRIX24_PORT, PHONE_LINK_REPOSITORY, ChatbotService],
     },
     MessageWorker,
     MigrationRunner,
     WazzupHttpAdapter,
+    ChatbotService,
   ],
 })
 export class AppModule {}
