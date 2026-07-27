@@ -19,6 +19,12 @@ import { ChatbotService } from "./application/services/chatbot.service";
 import { LeadIntelligenceService } from "./application/services/lead-intelligence.service";
 import { OpenRouterAdapter } from "./infrastructure/openrouter/openrouter.adapter";
 import { InternalController } from "./interfaces/http/internal.controller";
+import { DrizzleCatalogRepository } from "./infrastructure/database/repositories/drizzle-catalog.repository";
+import { DrizzleConversationStateRepository } from "./infrastructure/database/repositories/drizzle-conversation-state.repository";
+import { SearchCatalogUseCase } from "./application/use-cases/catalog/search-catalog.use-case";
+import { GetProductDetailsUseCase } from "./application/use-cases/catalog/get-product-details.use-case";
+import { ConversationPlanner } from "./application/services/conversation-planner.service";
+import { CatalogChatbotService } from "./application/services/catalog-chatbot.service";
 
 const BITRIX24_PORT = "BITRIX24_PORT";
 const EVENT_REPOSITORY = "EVENT_REPOSITORY";
@@ -26,6 +32,8 @@ const PHONE_LINK_REPOSITORY = "PHONE_LINK_REPOSITORY";
 const ASSIGNMENT_COUNTER_REPOSITORY = "ASSIGNMENT_COUNTER_REPOSITORY";
 const QUEUE_PORT = "QUEUE_PORT";
 const WAZZUP_PORT = "WAZZUP_PORT";
+const CATALOG_REPOSITORY = "CATALOG_REPOSITORY";
+const CONVERSATION_STATE = "CONVERSATION_STATE";
 
 @Module({
   imports: [
@@ -88,8 +96,10 @@ const WAZZUP_PORT = "WAZZUP_PORT";
         bitrix24: Bitrix24HttpAdapter,
         phoneLinkRepo: PgPhoneLinkRepository,
         chatbot: ChatbotService,
-      ) => new IncomingMessageHandler(config, eventRepo, queue, bitrix24, phoneLinkRepo, chatbot),
-      inject: [AppConfig, EVENT_REPOSITORY, QUEUE_PORT, BITRIX24_PORT, PHONE_LINK_REPOSITORY, ChatbotService],
+        catalogChatbot: CatalogChatbotService,
+        wazzup: WazzupHttpAdapter,
+      ) => new IncomingMessageHandler(config, eventRepo, queue, bitrix24, phoneLinkRepo, chatbot, catalogChatbot, wazzup),
+      inject: [AppConfig, EVENT_REPOSITORY, QUEUE_PORT, BITRIX24_PORT, PHONE_LINK_REPOSITORY, ChatbotService, CatalogChatbotService, WAZZUP_PORT],
     },
     MessageWorker,
     MigrationRunner,
@@ -97,6 +107,12 @@ const WAZZUP_PORT = "WAZZUP_PORT";
     ChatbotService,
     LeadIntelligenceService,
     OpenRouterAdapter,
+    DrizzleCatalogRepository,
+    DrizzleConversationStateRepository,
+    SearchCatalogUseCase,
+    GetProductDetailsUseCase,
+    ConversationPlanner,
+    CatalogChatbotService,
   ],
 })
 export class AppModule {}

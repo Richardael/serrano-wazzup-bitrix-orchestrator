@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { v4 as uuid } from "uuid";
 import { createHash } from "crypto";
 import { AppConfig } from "../../infrastructure/config/app.config";
@@ -10,6 +10,8 @@ import { WazzupWebhookPayload } from "../../interfaces/webhooks/wazzup-webhook.s
 import { NormalizedIncomingMessage } from "../../domain/messages/normalized-message";
 import { normalizePhoneNumber, maskPhoneForLog } from "../../infrastructure/config/phone-normalizer";
 import { ChatbotService } from "./chatbot.service";
+import { CatalogChatbotService } from "./catalog-chatbot.service";
+import { WazzupPort } from "../../application/ports/wazzup.port";
 
 const EVENT_RETENTION_WINDOW_MS = 5 * 60 * 1000;
 const PROVIDER = "WAZZUP";
@@ -53,6 +55,8 @@ export class IncomingMessageHandler {
     private readonly bitrix24: Bitrix24Port,
     private readonly phoneLinkRepo: PhoneLinkRepository,
     private readonly chatbot: ChatbotService,
+    private readonly catalogChatbot: CatalogChatbotService,
+    @Inject("WAZZUP_PORT") private readonly wazzupPort: WazzupPort,
   ) {}
 
   async handle(payload: WazzupWebhookPayload): Promise<{ status: string; eventId?: string }> {
@@ -98,6 +102,17 @@ export class IncomingMessageHandler {
 
     const leadId = result.eventId ?? "";
     const isNew = result.status === "lead_created";
+
+    if (this.config.env.CATALOG_CHATBOT_ENABLED) {
+      const catalogResponse = await this.catalogChatbot.handleMessage(
+        msg.contact.displayName, messageText ?? "", chatId, channelId, this.lastVendorId, leadId,
+      ).catch((e: unknown) => { this.logger.error(`Catalog chatbot error: ${e}`); return null; });
+
+      if (catalogResponse) {
+        await this.wazzupPort.sendMessage({ chatId, channelId, text: catalogResponse }).catch(() => {});
+        return;
+      }
+    }
 
     this.chatbot.handleMessage(
       msg.contact.displayName, messageText ?? "", chatId, channelId, this.lastVendorId, isNew, leadId,
