@@ -5,6 +5,7 @@ export const WazzupWebhookSchema = z.object({
   eventId: z.string().optional(),
   messageId: z.string().optional(),
   channelId: z.string().optional(),
+  chatId: z.string().optional(),
   direction: z.enum(["inbound", "outbound"]).optional(),
   messageType: z.enum(["text", "image", "video", "audio", "document", "other"]).optional(),
   occurredAt: z.string().optional(),
