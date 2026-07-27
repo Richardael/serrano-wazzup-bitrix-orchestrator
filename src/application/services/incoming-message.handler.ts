@@ -44,6 +44,7 @@ interface ProcessMessageJobPayload {
 export class IncomingMessageHandler {
   private readonly logger = new Logger(IncomingMessageHandler.name);
   private vendorRoundRobin = 0;
+  private lastVendorId = 0;
 
   constructor(
     private readonly config: AppConfig,
@@ -77,13 +78,12 @@ export class IncomingMessageHandler {
     try {
       const result = await this.handleWithDb(payload, normalizedMessage, maskedPhone);
       if (result.status === "lead_created" && chatId && isWazzupChannel) {
-        const vendorId = parseInt(String(result.eventId ?? "0"), 10) || 0;
         this.chatbot.handleMessage(
-          normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, vendorId, true,
+          normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, this.lastVendorId, true,
         ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
       } else if (result.status === "lead_reused" && chatId && isWazzupChannel) {
         this.chatbot.handleMessage(
-          normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, 0, false,
+          normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, this.lastVendorId, false,
         ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
       }
       return result;
@@ -93,7 +93,7 @@ export class IncomingMessageHandler {
       const result = await this.handleDirect(normalizedMessage, maskedPhone);
       if (result.status === "lead_created" && chatId && isWazzupChannel) {
         this.chatbot.handleMessage(
-          normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, 0, true,
+          normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, this.lastVendorId, true,
         ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
       }
       return result;
@@ -226,7 +226,9 @@ export class IncomingMessageHandler {
     const vendorIds = this.config.vendorIds;
     const index = this.vendorRoundRobin % vendorIds.length;
     this.vendorRoundRobin++;
-    return vendorIds[index] ?? vendorIds[0] ?? 1;
+    const vendorId = vendorIds[index] ?? vendorIds[0] ?? 1;
+    this.lastVendorId = vendorId;
+    return vendorId;
   }
 
   private normalizePayload(payload: WazzupWebhookPayload): NormalizedIncomingMessage | null {
