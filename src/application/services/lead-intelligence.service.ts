@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { OpenRouterAdapter } from "../../infrastructure/openrouter/openrouter.adapter";
 import { Bitrix24Port, LeadUpdateFields } from "../ports/bitrix24.port";
+import { InternalController } from "../../interfaces/http/internal.controller";
 
 interface ExtractedData {
   rubro?: string;
@@ -91,6 +92,11 @@ export class LeadIntelligenceService {
 
     if (!this.ai.isEnabled || history.length < 2) {
       this.logger.warn(`Skipping: ai=${this.ai.isEnabled}, historyLen=${history.length}`);
+      InternalController.lastUpdate = {
+        at: new Date().toISOString(), leadId, contactName, vendorName,
+        historyLength: history.length, extracted: null, camposLlenos: 0, updated: false,
+        error: `Skipping: aiEnabled=${this.ai.isEnabled} historyLen=${history.length}`,
+      };
       return 0;
     }
 
@@ -99,6 +105,12 @@ export class LeadIntelligenceService {
 
     if (!extracted || extracted.camposLlenos < 3) {
       this.logger.warn(`Not enough data: camposLlenos=${extracted?.camposLlenos ?? 0}`);
+      InternalController.lastUpdate = {
+        at: new Date().toISOString(), leadId, contactName, vendorName,
+        historyLength: history.length, extracted: extracted as unknown as Record<string, unknown> ?? null,
+        camposLlenos: extracted?.camposLlenos ?? 0, updated: false,
+        error: `Not enough data: ${extracted?.camposLlenos ?? 0} < 3`,
+      };
       return 0;
     }
 
@@ -158,9 +170,21 @@ export class LeadIntelligenceService {
 
       await this.bitrix24.updateLead(leadId, updateFields);
       this.logger.log(`Lead ${leadId} updated with ${extracted.camposLlenos} fields → IN_PROCESS`);
+      InternalController.lastUpdate = {
+        at: new Date().toISOString(), leadId, contactName, vendorName,
+        historyLength: history.length,
+        extracted: extracted as unknown as Record<string, unknown> ?? null,
+        camposLlenos: extracted.camposLlenos, updated: true,
+      };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`Failed to update lead ${leadId}: ${msg}`);
+      InternalController.lastUpdate = {
+        at: new Date().toISOString(), leadId, contactName, vendorName,
+        historyLength: history.length,
+        extracted: extracted as unknown as Record<string, unknown> ?? null,
+        camposLlenos: extracted.camposLlenos, updated: false, error: msg,
+      };
     }
 
     return extracted.camposLlenos;
