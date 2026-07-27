@@ -16,6 +16,7 @@ import { MessageWorker } from "./interfaces/webhooks/message.worker";
 import { MigrationRunner } from "./infrastructure/database/migration-runner";
 import { WazzupHttpAdapter } from "./infrastructure/wazzup/wazzup-http.adapter";
 import { ChatbotService } from "./application/services/chatbot.service";
+import { LeadIntelligenceService } from "./application/services/lead-intelligence.service";
 import { OpenRouterAdapter } from "./infrastructure/openrouter/openrouter.adapter";
 import { InternalController } from "./interfaces/http/internal.controller";
 
@@ -94,6 +95,7 @@ const WAZZUP_PORT = "WAZZUP_PORT";
     MigrationRunner,
     WazzupHttpAdapter,
     ChatbotService,
+    LeadIntelligenceService,
     OpenRouterAdapter,
   ],
 })
