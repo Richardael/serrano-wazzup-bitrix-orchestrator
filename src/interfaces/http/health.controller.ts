@@ -7,9 +7,9 @@ export class HealthController {
     return { status: "ok", timestamp: new Date().toISOString() };
   }
 
-  @Post("health")
-  healthPost() {
-    return { status: "ok", timestamp: new Date().toISOString() };
+  @Post("wazzup-verify")
+  wazzupVerify() {
+    return { status: "ok" };
   }
 
   @Get("ready")
