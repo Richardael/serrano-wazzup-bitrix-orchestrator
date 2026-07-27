@@ -27,6 +27,7 @@ export class WazzupIngestController {
       this.logger.log(`RAW WAZZUP PAYLOAD: ${JSON.stringify(b).slice(0, 2000)}`);
 
       const messages = b["messages"] as Array<Record<string, unknown>> | undefined;
+      let finalStatus = "no_messages";
 
       if (messages && messages.length > 0) {
         this.logger.log(`Processing ${messages.length} messages from array`);
@@ -38,8 +39,10 @@ export class WazzupIngestController {
             this.logger.log(`Mapped payload: ${JSON.stringify(mappedPayload).slice(0, 500)}`);
             const result = await this.handler.handle(mappedPayload);
             this.logger.log(`Handler result: ${JSON.stringify(result)}`);
+            finalStatus = result.status;
           } else {
             this.logger.warn("Could not map message to webhook payload — missing phone");
+            finalStatus = "no_phone";
           }
         }
       } else {
@@ -48,12 +51,14 @@ export class WazzupIngestController {
           this.logger.log(`Single event mapped: ${JSON.stringify(mapped).slice(0, 500)}`);
           const result = await this.handler.handle(mapped);
           this.logger.log(`Handler result: ${JSON.stringify(result)}`);
+          finalStatus = result.status;
         } else {
           this.logger.warn(`Could not map event to webhook payload — keys: ${Object.keys(b).join(", ")}`);
+          finalStatus = "no_phone";
         }
       }
 
-      return { status: "accepted" };
+      return { status: finalStatus };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`INGEST ERROR: ${msg}`);
