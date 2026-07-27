@@ -11,6 +11,7 @@ import { ProcessIncomingMessageUseCase } from "./application/use-cases/process-i
 import { IncomingMessageHandler } from "./application/services/incoming-message.handler";
 import { HealthController } from "./interfaces/http/health.controller";
 import { WazzupWebhookController } from "./interfaces/webhooks/wazzup-webhook.controller";
+import { WazzupIngestController } from "./interfaces/webhooks/wazzup-ingest.controller";
 import { MessageWorker } from "./interfaces/webhooks/message.worker";
 import { MigrationRunner } from "./infrastructure/database/migration-runner";
 import { WazzupHttpAdapter } from "./infrastructure/wazzup/wazzup-http.adapter";
@@ -26,7 +27,7 @@ const QUEUE_PORT = "QUEUE_PORT";
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
   ],
-  controllers: [HealthController, WazzupWebhookController],
+  controllers: [HealthController, WazzupWebhookController, WazzupIngestController],
   providers: [
     AppConfig,
     {
