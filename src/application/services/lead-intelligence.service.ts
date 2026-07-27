@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { OpenRouterAdapter } from "../../infrastructure/openrouter/openrouter.adapter";
 import { Bitrix24Port, LeadUpdateFields } from "../ports/bitrix24.port";
 import { InternalController } from "../../interfaces/http/internal.controller";
@@ -79,7 +79,7 @@ export class LeadIntelligenceService {
 
   constructor(
     private readonly ai: OpenRouterAdapter,
-    private readonly bitrix24: Bitrix24Port,
+    @Inject("BITRIX24_PORT") private readonly bitrix24: Bitrix24Port,
   ) {}
 
   async updateLeadFromHistory(
