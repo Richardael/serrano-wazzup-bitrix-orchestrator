@@ -72,10 +72,22 @@ export class LeadIntelligenceService {
     leadId: string,
     history: Array<{ role: "user" | "assistant"; content: string }>,
   ): Promise<number> {
-    if (!this.ai.isEnabled || history.length < 2) return 0;
+    this.logger.log(`updateLeadFromHistory called: leadId=${leadId}, historyLen=${history.length}, aiEnabled=${this.ai.isEnabled}`);
+
+    if (!this.ai.isEnabled || history.length < 2) {
+      this.logger.warn(`Skipping: ai=${this.ai.isEnabled}, historyLen=${history.length}`);
+      return 0;
+    }
 
     const extracted = await this.extractData(history);
-    if (!extracted || extracted.camposLlenos < 3) return 0;
+    this.logger.log(`Extracted: ${JSON.stringify(extracted)}`);
+
+    if (!extracted || extracted.camposLlenos < 3) {
+      this.logger.warn(`Not enough data: camposLlenos=${extracted?.camposLlenos ?? 0}`);
+      return 0;
+    }
+
+    this.logger.log(`Updating lead ${leadId} with ${extracted.camposLlenos} fields`);
 
     const ufFields: Record<string, string> = {};
     let commentLines: string[] = [];
