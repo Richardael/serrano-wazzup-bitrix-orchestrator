@@ -4,7 +4,7 @@ import { Controller, Get, Post, HttpCode } from "@nestjs/common";
 export class HealthController {
   @Get("health")
   health() {
-    return { status: "ok_V3_NEW_CODE", timestamp: new Date().toISOString() };
+    return { status: "ok", timestamp: new Date().toISOString() };
   }
 
   @Post("wazzup-verify")
