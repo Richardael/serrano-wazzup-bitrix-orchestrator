@@ -99,6 +99,7 @@ export class IncomingMessageHandler {
     channelId: string | undefined,
   ): Promise<void> {
     if (!chatId || !channelId || !channelId.startsWith("f207")) return;
+    if (!process.env["OPENROUTER_API_KEY"]) return;
 
     const leadId = result.eventId ?? "";
     const isNew = result.status === "lead_created";
