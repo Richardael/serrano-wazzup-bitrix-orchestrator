@@ -30,35 +30,19 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
   }
 
   async findLeadsByPhone(normalizedPhone: string): Promise<LeadRecord[]> {
-    const filter = {
-      "PHONE": normalizedPhone,
-    };
-
-    const data = await this.request<unknown[]>("crm.lead.list.json", {
-      filter,
-      select: ["ID", "TITLE", "STATUS_ID", "ASSIGNED_BY_ID", "SOURCE_ID", "PHONE", "DATE_CREATE"],
+    const data = await this.request<Record<string, number[]>>("crm.duplicate.findbycomm.json", {
+      entity_type: "LEAD",
+      type: "PHONE",
+      values: [normalizedPhone],
     });
 
-    const leads = data.result ?? [];
+    const leadIds = data.result?.["LEAD"] ?? [];
     const records: LeadRecord[] = [];
 
-    if (Array.isArray(leads)) {
-      for (const item of leads) {
-        if (typeof item === "object" && item !== null) {
-          const lead = item as Record<string, unknown>;
-          const phones = this.extractPhones(lead);
-          if (this.phoneMatches(phones, normalizedPhone)) {
-            records.push({
-              id: String(lead["ID"] ?? ""),
-              title: String(lead["TITLE"] ?? ""),
-              statusId: String(lead["STATUS_ID"] ?? ""),
-              assignedById: String(lead["ASSIGNED_BY_ID"] ?? ""),
-              sourceId: String(lead["SOURCE_ID"] ?? ""),
-              phone: String(phones[0] ?? ""),
-              createdAt: String(lead["DATE_CREATE"] ?? ""),
-            });
-          }
-        }
+    for (const id of leadIds) {
+      const lead = await this.getLead(String(id));
+      if (lead) {
+        records.push(lead);
       }
     }
 
