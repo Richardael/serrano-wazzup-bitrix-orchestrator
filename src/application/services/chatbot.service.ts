@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { WazzupPort } from "../ports/wazzup.port";
 import { AppConfig } from "../../infrastructure/config/app.config";
 import { OpenRouterAdapter } from "../../infrastructure/openrouter/openrouter.adapter";
@@ -14,7 +14,7 @@ export class ChatbotService {
   private readonly logger = new Logger(ChatbotService.name);
 
   constructor(
-    private readonly wazzup: WazzupPort,
+    @Inject("WAZZUP_PORT") private readonly wazzup: WazzupPort,
     private readonly config: AppConfig,
     private readonly ai: OpenRouterAdapter,
   ) {}
@@ -40,7 +40,7 @@ Tu trabajo es atender a clientes que escriben por WhatsApp, con un tono cálido,
 REGLAS:
 - Preséntate SOLO si es el primer mensaje del cliente.
 - Siempre pregunta el nombre si no lo sabes.
-- Averigua qué necesita: rubro (iluminación, mobiliario, diseño de interiores, domótica, redes, papel tapiz, paneles, ejecución de obra).
+- Averigua rubro (iluminación, mobiliario, diseño de interiores, domótica, redes, papel tapiz, paneles, ejecución de obra).
 - Pide ubicación (estado de Venezuela) y medidas aproximadas.
 - Si pregunta precios, explica que necesitas más datos para cotizar.
 - NO inventes precios ni prometas plazos.
