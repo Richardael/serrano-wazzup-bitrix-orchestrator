@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   integer,
+  boolean,
   jsonb,
   uniqueIndex,
   index,
@@ -81,3 +82,64 @@ export const processingJobs = pgTable("processing_jobs", {
   completedAt: timestamp("completed_at", { withTimezone: true }),
   errorMessage: text("error_message"),
 });
+
+export const catalogProducts = pgTable("catalog_products", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slug: varchar("slug", { length: 256 }).notNull().unique(),
+  name: varchar("name", { length: 256 }).notNull(),
+  normalizedName: varchar("normalized_name", { length: 256 }).notNull(),
+  category: varchar("category", { length: 128 }).notNull(),
+  shortDescription: text("short_description"),
+  searchText: text("search_text").notNull(),
+  aliases: jsonb("aliases").notNull().default("[]"),
+  configurations: jsonb("configurations").notNull().default("[]"),
+  materials: jsonb("materials").notNull().default("[]"),
+  finishes: jsonb("finishes").notNull().default("[]"),
+  sizes: jsonb("sizes").notNull().default("[]"),
+  seatOptions: jsonb("seat_options").notNull().default("[]"),
+  sourcePages: jsonb("source_pages").notNull().default("[]"),
+  keywords: jsonb("keywords").notNull().default("[]"),
+  isActive: boolean("is_active").notNull().default(true),
+  needsReview: boolean("needs_review").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_catalog_name").on(table.normalizedName),
+  index("idx_catalog_category").on(table.category),
+  index("idx_catalog_active").on(table.isActive),
+]);
+
+export const catalogProductImages = pgTable("catalog_product_images", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").notNull().references(() => catalogProducts.id),
+  sourcePage: integer("source_page"),
+  storagePath: varchar("storage_path", { length: 512 }),
+  publicUrl: varchar("public_url", { length: 1024 }),
+  altText: text("alt_text"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const conversationStates = pgTable("conversation_states", {
+  chatId: varchar("chat_id", { length: 64 }).primaryKey(),
+  normalizedPhone: varchar("normalized_phone", { length: 16 }).notNull(),
+  leadId: varchar("lead_id", { length: 32 }),
+  assignedVendorId: integer("assigned_vendor_id"),
+  stage: varchar("stage", { length: 64 }).notNull().default("GREETING"),
+  lastIntent: varchar("last_intent", { length: 64 }),
+  summary: text("summary").notNull().default(""),
+  facts: jsonb("facts").notNull().default("{}"),
+  selectedProductIds: jsonb("selected_product_ids").notNull().default("[]"),
+  rejectedProductIds: jsonb("rejected_product_ids").notNull().default("[]"),
+  pendingQuestion: varchar("pending_question", { length: 512 }),
+  handoffRequested: boolean("handoff_requested").notNull().default(false),
+  handoffReason: varchar("handoff_reason", { length: 128 }),
+  lastActivityAt: timestamp("last_activity_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_conv_activity").on(table.lastActivityAt),
+  index("idx_conv_phone").on(table.normalizedPhone),
+]);

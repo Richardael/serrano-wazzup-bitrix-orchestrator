@@ -20,6 +20,23 @@ export const envSchema = z.object({
   JOB_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   WAZZUP_API_KEY: z.string().optional().default(""),
   OPENROUTER_API_KEY: z.string().optional().default(""),
+  CATALOG_CHATBOT_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  CATALOG_CHATBOT_SHADOW_MODE: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  CATALOG_HANDOFF_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+  CATALOG_IMAGES_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  CONVERSATION_STATE_TTL_MINUTES: z.coerce.number().int().positive().default(1440),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
