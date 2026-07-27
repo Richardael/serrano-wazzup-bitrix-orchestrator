@@ -160,7 +160,7 @@ export class IncomingMessageHandler {
 
     const directResult = await this.handleDirect(normalizedMessage, maskedPhone);
 
-    return { status: directResult.status, eventId: event.id };
+    return { status: directResult.status, eventId: directResult.eventId ?? event.id };
   }
 
   private async handleDirect(
