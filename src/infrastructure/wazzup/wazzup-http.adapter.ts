@@ -62,6 +62,7 @@ export class WazzupHttpAdapter implements WazzupPort {
         chatId: input.chatId,
         channelId: input.channelId,
         text: input.text,
+        chatType: "whatsapp",
       }),
     });
   }
