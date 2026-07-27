@@ -73,30 +73,37 @@ export class IncomingMessageHandler {
     const contentObj = ((payload as Record<string, unknown>)["content"] ?? {}) as Record<string, unknown>;
     const messageText = contentObj["text"] as string | undefined;
     const channelId = (payload as Record<string, unknown>)["channelId"] as string | undefined;
-    const isWazzupChannel = channelId && channelId.startsWith("f207");
 
     try {
       const result = await this.handleWithDb(payload, normalizedMessage, maskedPhone);
-      if (result.status === "lead_created" && chatId && isWazzupChannel) {
-        this.chatbot.handleMessage(
-          normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, this.lastVendorId, true,
-        ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
-      } else if (result.status === "lead_reused" && chatId && isWazzupChannel) {
-        this.chatbot.handleMessage(
-          normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, this.lastVendorId, false,
-        ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
-      }
+      await this.callChatbot(result.status, normalizedMessage, messageText, chatId, channelId);
       return result;
     } catch (dbErr: unknown) {
       const dbMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
       this.logger.warn(`DB unavailable (${dbMsg}) — processing message directly for ${maskedPhone}`);
       const result = await this.handleDirect(normalizedMessage, maskedPhone);
-      if (result.status === "lead_created" && chatId && isWazzupChannel) {
-        this.chatbot.handleMessage(
-          normalizedMessage.contact.displayName, messageText ?? "", chatId, channelId!, this.lastVendorId, true,
-        ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
-      }
+      await this.callChatbot(result.status, normalizedMessage, messageText, chatId, channelId);
       return result;
+    }
+  }
+
+  private async callChatbot(
+    status: string,
+    msg: NormalizedIncomingMessage,
+    messageText: string | undefined,
+    chatId: string | undefined,
+    channelId: string | undefined,
+  ): Promise<void> {
+    if (!chatId || !channelId || !channelId.startsWith("f207")) return;
+
+    if (status === "lead_created") {
+      this.chatbot.handleMessage(
+        msg.contact.displayName, messageText ?? "", chatId, channelId, this.lastVendorId, true,
+      ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
+    } else if (status === "lead_reused") {
+      this.chatbot.handleMessage(
+        msg.contact.displayName, messageText ?? "", chatId, channelId, this.lastVendorId, false,
+      ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
     }
   }
 
