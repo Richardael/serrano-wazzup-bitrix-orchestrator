@@ -129,6 +129,11 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
         }
       }
     }
+    if (fields.extraParams) {
+      for (const [key, value] of Object.entries(fields.extraParams)) {
+        params[key] = value;
+      }
+    }
 
     const data = await this.request<boolean>("crm.lead.update.json", params);
     if (data.error) {

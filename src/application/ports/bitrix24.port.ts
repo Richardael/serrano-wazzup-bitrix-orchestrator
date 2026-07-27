@@ -15,6 +15,7 @@ export interface LeadUpdateFields {
   statusId?: string;
   comments?: string | null;
   ufFields?: Record<string, string | number | boolean | null>;
+  extraParams?: Record<string, string>;
 }
 
 export interface CreateLeadInput {
