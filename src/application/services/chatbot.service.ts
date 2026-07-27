@@ -1,6 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { WazzupPort } from "../ports/wazzup.port";
 import { AppConfig } from "../../infrastructure/config/app.config";
+
+const WAZZUP_PORT = "WAZZUP_PORT";
 
 const VENDOR_NAMES: Record<number, string> = {
   206: "Tahi",
@@ -49,7 +51,7 @@ export class ChatbotService {
     `${vendor} te atenderá personalmente. ¿En qué podemos ayudarte?`;
 
   constructor(
-    private readonly wazzup: WazzupPort,
+    @Inject(WAZZUP_PORT) private readonly wazzup: WazzupPort,
     private readonly config: AppConfig,
   ) {}
 
