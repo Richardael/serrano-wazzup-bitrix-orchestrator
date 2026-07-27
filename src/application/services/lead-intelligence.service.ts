@@ -89,21 +89,19 @@ export class LeadIntelligenceService {
 
     this.logger.log(`Updating lead ${leadId} with ${extracted.camposLlenos} fields`);
 
-    const ufFields: Record<string, string> = {};
-    let commentLines: string[] = [];
+    const commentLines: string[] = [];
 
     if (extracted.rubro) {
       const mapped = RUBRO_MAP[extracted.rubro.toLowerCase().trim()];
-      if (mapped) ufFields["UF_CRM_RUBRO"] = mapped;
+      commentLines.push(`Rubro: ${mapped ?? extracted.rubro}`);
     }
     if (extracted.estado || extracted.ciudad) {
       const loc = (extracted.estado ?? extracted.ciudad ?? "").toLowerCase().trim();
       const mapped = Object.entries(ESTADO_MAP).find(([k]) => loc.includes(k));
-      if (mapped) ufFields["UF_CRM_ESTADO_VENEZUELA"] = mapped[1];
-      else commentLines.push(`Ubicación: ${extracted.estado ?? extracted.ciudad}`);
+      commentLines.push(`Ubicación: ${mapped ? mapped[1] : (extracted.estado ?? extracted.ciudad)}`);
     }
-    if (extracted.producto) commentLines.push(`Producto: ${extracted.producto}`);
     if (extracted.espacio) commentLines.push(`Espacio: ${extracted.espacio}`);
+    if (extracted.producto) commentLines.push(`Producto: ${extracted.producto}`);
     if (extracted.medidas) commentLines.push(`Medidas: ${extracted.medidas}`);
 
     const existingLead = await this.bitrix24.getLead(leadId);
@@ -115,10 +113,6 @@ export class LeadIntelligenceService {
 
       if (commentLines.length > 0) {
         updateFields.comments = `[Chatbot ${now}]\n${commentLines.join("\n")}`;
-      }
-
-      if (Object.keys(ufFields).length > 0) {
-        updateFields.ufFields = ufFields as Record<string, string | number | boolean | null>;
       }
 
       await this.bitrix24.updateLead(leadId, updateFields);
