@@ -145,20 +145,13 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
 
-        const body = new URLSearchParams();
-        if (params) {
-          for (const [key, value] of Object.entries(params)) {
-            if (value !== undefined && value !== null) {
-              body.append(key, typeof value === "object" ? JSON.stringify(value) : String(value));
-            }
-          }
-        }
+        const body = this.buildFormBody(params ?? {});
 
         const start = Date.now();
         const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: body.toString(),
+          body: body,
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
@@ -189,6 +182,29 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
     }
 
     throw lastError ?? new Error("Unknown error in Bitrix24 request");
+  }
+
+  private buildFormBody(params: Record<string, unknown>): string {
+    const parts: string[] = [];
+    this.flattenParams(params, "", parts);
+    return parts.join("&");
+  }
+
+  private flattenParams(obj: unknown, prefix: string, parts: string[]): void {
+    if (obj === null || obj === undefined) return;
+
+    if (Array.isArray(obj)) {
+      for (let i = 0; i < obj.length; i++) {
+        this.flattenParams(obj[i], `${prefix}[${i}]`, parts);
+      }
+    } else if (typeof obj === "object") {
+      for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+        const newPrefix = prefix ? `${prefix}[${key}]` : key;
+        this.flattenParams(value, newPrefix, parts);
+      }
+    } else {
+      parts.push(`${prefix}=${encodeURIComponent(String(obj))}`);
+    }
   }
 
   private extractPhones(record: Record<string, unknown>): string[] {
