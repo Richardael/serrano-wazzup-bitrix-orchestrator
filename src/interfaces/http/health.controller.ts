@@ -1,4 +1,4 @@
-import { Controller, Get, Post } from "@nestjs/common";
+import { Controller, Get, Post, HttpCode } from "@nestjs/common";
 
 @Controller()
 export class HealthController {
@@ -8,6 +8,7 @@ export class HealthController {
   }
 
   @Post("wazzup-verify")
+  @HttpCode(200)
   wazzupVerify() {
     return { status: "ok" };
   }
