@@ -29,6 +29,7 @@
     "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.8.3",
     "libphonenumber-js": "^1.13.9",
+    "openai": "^6.49.0",
     "pg": "^8.16.3",
     "postgres": "^3.4.7",
     "reflect-metadata": "^0.2.2",

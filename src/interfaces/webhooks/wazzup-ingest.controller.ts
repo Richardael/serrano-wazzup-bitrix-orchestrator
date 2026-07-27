@@ -1,5 +1,6 @@
 import { Controller, Post, Body, HttpCode, Logger } from "@nestjs/common";
 import { IncomingMessageHandler } from "../../application/services/incoming-message.handler";
+import { InternalController } from "../http/internal.controller";
 
 @Controller("wazzup-ingest")
 export class WazzupIngestController {
@@ -22,6 +23,14 @@ export class WazzupIngestController {
         this.logger.log("Wazzup verification ping received");
         return { status: "ok" };
       }
+
+      const sanitized = this.sanitizePayload(b);
+      InternalController.lastPayload = {
+        receivedAt: new Date().toISOString(),
+        keys: Object.keys(b),
+        preview: JSON.stringify(b).slice(0, 2000),
+        full: sanitized,
+      };
 
       this.logger.log(`RAW WAZZUP PAYLOAD keys: ${Object.keys(b).join(", ")}`);
       this.logger.log(`RAW WAZZUP PAYLOAD: ${JSON.stringify(b).slice(0, 2000)}`);
@@ -99,5 +108,25 @@ export class WazzupIngestController {
         attachments: msg["attachments"] ?? msg["media"] ?? [],
       },
     };
+  }
+
+  private sanitizePayload(obj: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === "text" || key === "body" || key === "message") {
+        result[key] = "[REDACTED]";
+      } else if (Array.isArray(value)) {
+        result[key] = value.map((item) =>
+          typeof item === "object" && item !== null
+            ? this.sanitizePayload(item as Record<string, unknown>)
+            : item,
+        );
+      } else if (typeof value === "object" && value !== null) {
+        result[key] = this.sanitizePayload(value as Record<string, unknown>);
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
   }
 }

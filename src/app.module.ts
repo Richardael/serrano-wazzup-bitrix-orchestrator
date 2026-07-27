@@ -16,6 +16,8 @@ import { MessageWorker } from "./interfaces/webhooks/message.worker";
 import { MigrationRunner } from "./infrastructure/database/migration-runner";
 import { WazzupHttpAdapter } from "./infrastructure/wazzup/wazzup-http.adapter";
 import { ChatbotService } from "./application/services/chatbot.service";
+import { OpenRouterAdapter } from "./infrastructure/openrouter/openrouter.adapter";
+import { InternalController } from "./interfaces/http/internal.controller";
 
 const BITRIX24_PORT = "BITRIX24_PORT";
 const EVENT_REPOSITORY = "EVENT_REPOSITORY";
@@ -29,7 +31,7 @@ const WAZZUP_PORT = "WAZZUP_PORT";
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
   ],
-  controllers: [HealthController, WazzupWebhookController, WazzupIngestController],
+  controllers: [HealthController, WazzupWebhookController, WazzupIngestController, InternalController],
   providers: [
     AppConfig,
     {
@@ -92,6 +94,7 @@ const WAZZUP_PORT = "WAZZUP_PORT";
     MigrationRunner,
     WazzupHttpAdapter,
     ChatbotService,
+    OpenRouterAdapter,
   ],
 })
 export class AppModule {}
