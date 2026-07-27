@@ -1,4 +1,6 @@
 FROM node:24-alpine AS builder
+ARG BUILDKIT_INLINE_CACHE=1
+ARG CACHEBUST=1
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci && npm install -g @nestjs/cli
@@ -6,6 +8,7 @@ COPY . .
 RUN nest build
 
 FROM node:24-alpine AS production
+ARG CACHEBUST=1
 WORKDIR /app
 RUN apk add --no-cache tini curl
 COPY package*.json ./
