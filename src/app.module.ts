@@ -22,6 +22,7 @@ const EVENT_REPOSITORY = "EVENT_REPOSITORY";
 const PHONE_LINK_REPOSITORY = "PHONE_LINK_REPOSITORY";
 const ASSIGNMENT_COUNTER_REPOSITORY = "ASSIGNMENT_COUNTER_REPOSITORY";
 const QUEUE_PORT = "QUEUE_PORT";
+const WAZZUP_PORT = "WAZZUP_PORT";
 
 @Module({
   imports: [
@@ -50,6 +51,10 @@ const QUEUE_PORT = "QUEUE_PORT";
     {
       provide: QUEUE_PORT,
       useClass: PgQueueAdapter,
+    },
+    {
+      provide: WAZZUP_PORT,
+      useClass: WazzupHttpAdapter,
     },
     {
       provide: ProcessIncomingMessageUseCase,
