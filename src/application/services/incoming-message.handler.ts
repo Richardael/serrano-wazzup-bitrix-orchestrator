@@ -253,6 +253,10 @@ export class IncomingMessageHandler {
     maskedPhone: string,
   ): Promise<{ status: string; eventId?: string }> {
     const normalizedPhone = normalizedMessage.contact.normalizedPhone;
+    const contactId = await this.bitrix24.upsertContact({
+      name: normalizedMessage.contact.displayName?.trim() || normalizedPhone,
+      phone: normalizedPhone,
+    });
 
     const leads = await this.bitrix24.findLeadsByPhone(normalizedPhone);
 
@@ -268,8 +272,9 @@ export class IncomingMessageHandler {
         lastName: null,
         phone: normalizedPhone,
         email: null,
-        statusId: this.config.env.BITRIX24_LEAD_INITIAL_STATUS,
+        statusId: "NEW",
         sourceId: "WHATSAPP",
+        contactId,
         comments: `[WhatsApp] Mensaje recibido — ${new Date().toISOString()}`,
         ufFields: {},
       });
@@ -286,6 +291,7 @@ export class IncomingMessageHandler {
       this.logger.log(
         `Reusing active lead ${activeLeads[0]!.id} for ${maskedPhone}`,
       );
+      await this.bitrix24.updateLead(activeLeads[0]!.id, { contactId });
       return { status: "lead_reused", eventId: activeLeads[0]!.id };
     }
 
@@ -301,8 +307,9 @@ export class IncomingMessageHandler {
         lastName: null,
         phone: normalizedPhone,
         email: null,
-        statusId: this.config.env.BITRIX24_LEAD_INITIAL_STATUS,
+        statusId: "NEW",
         sourceId: "WHATSAPP",
+        contactId,
         comments: `[WhatsApp] Mensaje recibido — ${new Date().toISOString()}`,
         ufFields: {},
       });

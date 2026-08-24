@@ -5,6 +5,7 @@ import {
   CreateLeadInput,
   BitrixStatus,
   LeadUpdateFields,
+  UpsertContactInput,
 } from "../../application/ports/bitrix24.port";
 import { LeadRecord } from "../../domain/leads/lead";
 import { maskPhoneForLog } from "../config/phone-normalizer";
@@ -32,6 +33,31 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
   async testConnection(): Promise<boolean> {
     const data = await this.request<{ ID: string }>("profile.json");
     return Boolean(data.result?.ID);
+  }
+
+  async upsertContact(input: UpsertContactInput): Promise<string> {
+    const data = await this.request<Array<Record<string, unknown>>>(
+      "crm.contact.list.json",
+      { filter: { PHONE: input.phone }, select: ["ID"] },
+    );
+    const existing = data.result?.[0];
+    const fields = {
+      NAME: input.name,
+      PHONE: [{ VALUE: input.phone, VALUE_TYPE: "WORK" }],
+    };
+    if (existing?.["ID"]) {
+      await this.request<boolean>("crm.contact.update.json", {
+        id: String(existing["ID"]),
+        fields,
+      });
+      return String(existing["ID"]);
+    }
+    const created = await this.request<number>("crm.contact.add.json", { fields });
+    return String(created);
+  }
+
+  async deleteContact(contactId: string): Promise<void> {
+    await this.request<boolean>("crm.contact.delete.json", { id: contactId });
   }
 
   async findLeadsByPhone(normalizedPhone: string): Promise<LeadRecord[]> {
@@ -88,6 +114,8 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
       TITLE: input.title,
       STATUS_ID: input.statusId,
       SOURCE_ID: input.sourceId,
+      ...(input.contactId ? { CONTACT_ID: input.contactId } : {}),
+      ...(input.companyId ? { COMPANY_ID: input.companyId } : {}),
       ...input.ufFields,
     };
     if (input.assignedById) fields.ASSIGNED_BY_ID = input.assignedById;
@@ -138,6 +166,8 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
     if (fields.comments !== undefined) {
       params["fields[COMMENTS]"] = fields.comments;
     }
+    if (fields.contactId) params["fields[CONTACT_ID]"] = fields.contactId;
+    if (fields.companyId) params["fields[COMPANY_ID]"] = fields.companyId;
     if (fields.ufFields) {
       for (const [key, value] of Object.entries(fields.ufFields)) {
         if (value !== null && value !== undefined) {
