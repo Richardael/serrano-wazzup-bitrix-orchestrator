@@ -22,6 +22,9 @@ export class AppConfig {
       EVENT_RETENTION_DAYS: configService.get("EVENT_RETENTION_DAYS"),
       MAX_WEBHOOK_BODY_BYTES: configService.get("MAX_WEBHOOK_BODY_BYTES"),
       JOB_MAX_ATTEMPTS: configService.get("JOB_MAX_ATTEMPTS"),
+      WAZZUP_API_KEY: configService.get("WAZZUP_API_KEY"),
+      BOT_INTERNAL_BASE_URL: configService.get("BOT_INTERNAL_BASE_URL"),
+      ORCHESTRATOR_SHARED_SECRET: configService.get("ORCHESTRATOR_SHARED_SECRET"),
     };
 
     const parsed = envSchema.parse(raw);

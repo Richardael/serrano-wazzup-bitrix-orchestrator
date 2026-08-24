@@ -1,12 +1,16 @@
 import { Controller, Post, Body, HttpCode, Logger } from "@nestjs/common";
 import { IncomingMessageHandler } from "../../application/services/incoming-message.handler";
 import { InternalController } from "../http/internal.controller";
+import { BotInboundRelayService } from "../../infrastructure/bot/bot-inbound-relay.service";
 
 @Controller("wazzup-ingest")
 export class WazzupIngestController {
   private readonly logger = new Logger(WazzupIngestController.name);
 
-  constructor(private readonly handler: IncomingMessageHandler) {}
+  constructor(
+    private readonly handler: IncomingMessageHandler,
+    private readonly botRelay: BotInboundRelayService,
+  ) {}
 
   @Post()
   @HttpCode(200)
@@ -23,6 +27,12 @@ export class WazzupIngestController {
         this.logger.log("Wazzup verification ping received");
         return { status: "ok" };
       }
+
+      // The relay is detached so bot availability cannot delay Wazzup or Bitrix processing.
+      void this.botRelay.relayInbound(b).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "unknown error";
+        this.logger.warn(`Bot relay failed without affecting ingest: ${message}`);
+      });
 
       const sanitized = this.sanitizePayload(b);
       InternalController.lastPayload = {
