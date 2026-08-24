@@ -22,6 +22,10 @@ export const envSchema = z.object({
   BOT_INTERNAL_BASE_URL: z.string().url().optional(),
   ORCHESTRATOR_SHARED_SECRET: z.string().min(16).optional(),
   OPENROUTER_API_KEY: z.string().optional().default(""),
+  AUTOMATED_CHATBOT_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
   CATALOG_CHATBOT_ENABLED: z
     .enum(["true", "false"])
     .default("false")

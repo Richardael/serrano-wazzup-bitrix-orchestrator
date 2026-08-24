@@ -98,6 +98,7 @@ export class IncomingMessageHandler {
     chatId: string | undefined,
     channelId: string | undefined,
   ): Promise<void> {
+    if (!this.config.env.AUTOMATED_CHATBOT_ENABLED) return;
     if (!chatId || !channelId || !channelId.startsWith("f207")) return;
     if (!process.env["OPENROUTER_API_KEY"]) return;
 
