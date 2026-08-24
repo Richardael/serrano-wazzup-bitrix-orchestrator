@@ -19,6 +19,8 @@ export const envSchema = z.object({
   MAX_WEBHOOK_BODY_BYTES: z.coerce.number().int().positive().default(1048576),
   JOB_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   WAZZUP_API_KEY: z.string().optional().default(""),
+  BOT_INTERNAL_BASE_URL: z.string().url().optional(),
+  ORCHESTRATOR_SHARED_SECRET: z.string().min(16).optional(),
   OPENROUTER_API_KEY: z.string().optional().default(""),
   CATALOG_CHATBOT_ENABLED: z
     .enum(["true", "false"])
@@ -37,6 +39,9 @@ export const envSchema = z.object({
     .default("false")
     .transform((v) => v === "true"),
   CONVERSATION_STATE_TTL_MINUTES: z.coerce.number().int().positive().default(1440),
-});
+}).refine(
+  (env) => Boolean(env.BOT_INTERNAL_BASE_URL) === Boolean(env.ORCHESTRATOR_SHARED_SECRET),
+  "BOT_INTERNAL_BASE_URL and ORCHESTRATOR_SHARED_SECRET must be configured together",
+);
 
 export type EnvConfig = z.infer<typeof envSchema>;

@@ -25,13 +25,15 @@ import { SearchCatalogUseCase } from "./application/use-cases/catalog/search-cat
 import { GetProductDetailsUseCase } from "./application/use-cases/catalog/get-product-details.use-case";
 import { ConversationPlanner } from "./application/services/conversation-planner.service";
 import { CatalogChatbotService } from "./application/services/catalog-chatbot.service";
+import { BotInboundRelayService } from "./infrastructure/bot/bot-inbound-relay.service";
+import { BotIntegrationController } from "./interfaces/internal/bot-integration.controller";
+import { WAZZUP_PORT } from "./application/ports/wazzup.port";
 
 const BITRIX24_PORT = "BITRIX24_PORT";
 const EVENT_REPOSITORY = "EVENT_REPOSITORY";
 const PHONE_LINK_REPOSITORY = "PHONE_LINK_REPOSITORY";
 const ASSIGNMENT_COUNTER_REPOSITORY = "ASSIGNMENT_COUNTER_REPOSITORY";
 const QUEUE_PORT = "QUEUE_PORT";
-const WAZZUP_PORT = "WAZZUP_PORT";
 const CATALOG_REPOSITORY = "CATALOG_REPOSITORY";
 const CONVERSATION_STATE = "CONVERSATION_STATE";
 
@@ -40,7 +42,7 @@ const CONVERSATION_STATE = "CONVERSATION_STATE";
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
   ],
-  controllers: [HealthController, WazzupWebhookController, WazzupIngestController, InternalController],
+  controllers: [HealthController, WazzupWebhookController, WazzupIngestController, InternalController, BotIntegrationController],
   providers: [
     AppConfig,
     {
@@ -112,6 +114,7 @@ const CONVERSATION_STATE = "CONVERSATION_STATE";
     MessageWorker,
     MigrationRunner,
     WazzupHttpAdapter,
+    BotInboundRelayService,
     ChatbotService,
     LeadIntelligenceService,
     OpenRouterAdapter,
