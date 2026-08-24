@@ -15,61 +15,61 @@ interface ExtractedData {
 }
 
 const RUBRO_MAP: Record<string, number> = {
-  "iluminación": 282,
-  "iluminacion": 282,
-  "mobiliario": 284,
-  "domótica": 286,
-  "domotica": 286,
-  "redes": 288,
+  iluminación: 282,
+  iluminacion: 282,
+  mobiliario: 284,
+  domótica: 286,
+  domotica: 286,
+  redes: 288,
   "diseño de interiores": 290,
   "diseño interior": 290,
   "papel tapiz": 294,
-  "papel": 294,
-  "paneles": 296,
+  papel: 294,
+  paneles: 296,
   "ejecución de obra": 292,
   "ejecucion de obra": 292,
 };
 
 const ESTADO_MAP: Record<string, number> = {
-  "amazonas": 232,
-  "anzoátegui": 234,
-  "anzoategui": 234,
+  amazonas: 232,
+  anzoátegui: 234,
+  anzoategui: 234,
   "puerto la cruz": 234,
-  "barcelona": 234,
-  "apure": 236,
-  "aragua": 238,
-  "maracay": 238,
-  "barinas": 240,
-  "bolívar": 242,
-  "bolivar": 242,
-  "carabobo": 244,
-  "valencia": 244,
-  "cojedes": 246,
+  barcelona: 234,
+  apure: 236,
+  aragua: 238,
+  maracay: 238,
+  barinas: 240,
+  bolívar: 242,
+  bolivar: 242,
+  carabobo: 244,
+  valencia: 244,
+  cojedes: 246,
   "delta amacuro": 248,
-  "falcón": 250,
-  "falcon": 250,
-  "guárico": 252,
-  "guarico": 252,
-  "lara": 254,
-  "barquisimeto": 254,
+  falcón: 250,
+  falcon: 250,
+  guárico: 252,
+  guarico: 252,
+  lara: 254,
+  barquisimeto: 254,
   "la guaira": 256,
-  "vargas": 256,
-  "mérida": 258,
-  "merida": 258,
-  "miranda": 260,
-  "monagas": 262,
+  vargas: 256,
+  mérida: 258,
+  merida: 258,
+  miranda: 260,
+  monagas: 262,
   "nueva esparta": 264,
-  "margarita": 264,
-  "portuguesa": 266,
-  "sucre": 268,
-  "táchira": 270,
-  "tachira": 270,
-  "trujillo": 272,
-  "yaracuy": 274,
-  "zulia": 276,
-  "maracaibo": 276,
+  margarita: 264,
+  portuguesa: 266,
+  sucre: 268,
+  táchira: 270,
+  tachira: 270,
+  trujillo: 272,
+  yaracuy: 274,
+  zulia: 276,
+  maracaibo: 276,
   "distrito capital": 278,
-  "caracas": 278,
+  caracas: 278,
   "dependencias federales": 280,
 };
 
@@ -88,33 +88,55 @@ export class LeadIntelligenceService {
     contactName: string | null,
     vendorName: string,
   ): Promise<number> {
-    this.logger.log(`updateLeadFromHistory called: leadId=${leadId}, historyLen=${history.length}, aiEnabled=${this.ai.isEnabled}`);
+    this.logger.log(
+      `updateLeadFromHistory called: leadId=${leadId}, historyLen=${history.length}, aiEnabled=${this.ai.isEnabled}`,
+    );
 
     if (!this.ai.isEnabled || history.length < 2) {
-      this.logger.warn(`Skipping: ai=${this.ai.isEnabled}, historyLen=${history.length}`);
+      this.logger.warn(
+        `Skipping: ai=${this.ai.isEnabled}, historyLen=${history.length}`,
+      );
       InternalController.lastUpdate = {
-        at: new Date().toISOString(), leadId, contactName, vendorName,
-        historyLength: history.length, extracted: null, camposLlenos: 0, updated: false,
+        at: new Date().toISOString(),
+        leadId,
+        contactName,
+        vendorName,
+        historyLength: history.length,
+        extracted: null,
+        camposLlenos: 0,
+        updated: false,
         error: `Skipping: aiEnabled=${this.ai.isEnabled} historyLen=${history.length}`,
       };
       return 0;
     }
 
+    const userAnswerCount = history.filter(
+      (turn) => turn.role === "user",
+    ).length;
     const extracted = await this.extractData(history);
     this.logger.log(`Extracted: ${JSON.stringify(extracted)}`);
 
-    if (!extracted || extracted.camposLlenos < 3) {
-      this.logger.warn(`Not enough data: camposLlenos=${extracted?.camposLlenos ?? 0}`);
+    if (!extracted || extracted.camposLlenos < 3 || userAnswerCount < 5) {
+      this.logger.warn(
+        `Not enough data: camposLlenos=${extracted?.camposLlenos ?? 0}`,
+      );
       InternalController.lastUpdate = {
-        at: new Date().toISOString(), leadId, contactName, vendorName,
-        historyLength: history.length, extracted: extracted as unknown as Record<string, unknown> ?? null,
-        camposLlenos: extracted?.camposLlenos ?? 0, updated: false,
+        at: new Date().toISOString(),
+        leadId,
+        contactName,
+        vendorName,
+        historyLength: history.length,
+        extracted: (extracted as unknown as Record<string, unknown>) ?? null,
+        camposLlenos: extracted?.camposLlenos ?? 0,
+        updated: false,
         error: `Not enough data: ${extracted?.camposLlenos ?? 0} < 3`,
       };
       return 0;
     }
 
-    this.logger.log(`Updating lead ${leadId} with ${extracted.camposLlenos} fields`);
+    this.logger.log(
+      `Updating lead ${leadId} with ${extracted.camposLlenos} fields`,
+    );
 
     const commentLines: string[] = [];
     const extraParams: Record<string, string> = {};
@@ -125,20 +147,27 @@ export class LeadIntelligenceService {
     }
 
     if (extracted.estado || extracted.ciudad) {
-      const loc = (extracted.estado ?? extracted.ciudad ?? "").toLowerCase().trim();
+      const loc = (extracted.estado ?? extracted.ciudad ?? "")
+        .toLowerCase()
+        .trim();
       const entry = Object.entries(ESTADO_MAP).find(([k]) => loc.includes(k));
       const id = entry?.[1];
-      if (id !== undefined) extraParams["fields[UF_CRM_ESTADO_VENEZUELA]"] = String(id);
-      else commentLines.push(`Ubicación: ${extracted.estado ?? extracted.ciudad}`);
+      if (id !== undefined)
+        extraParams["fields[UF_CRM_ESTADO_VENEZUELA]"] = String(id);
+      else
+        commentLines.push(`Ubicación: ${extracted.estado ?? extracted.ciudad}`);
     }
 
     if (extracted.espacio) commentLines.push(`Espacio: ${extracted.espacio}`);
-    if (extracted.producto) commentLines.push(`Producto: ${extracted.producto}`);
+    if (extracted.producto)
+      commentLines.push(`Producto: ${extracted.producto}`);
     if (extracted.medidas) commentLines.push(`Medidas: ${extracted.medidas}`);
 
     const existingLead = await this.bitrix24.getLead(leadId);
     const existingComments = existingLead ? "" : "";
-    const now = new Date().toLocaleString("es-VE", { timeZone: "America/Caracas" });
+    const now = new Date().toLocaleString("es-VE", {
+      timeZone: "America/Caracas",
+    });
 
     const titleParts: string[] = [];
 
@@ -156,7 +185,15 @@ export class LeadIntelligenceService {
     const newTitle = titleParts.join(" / ");
 
     try {
-      const updateFields: LeadUpdateFields = { statusId: "IN_PROCESS" };
+      const sellers = (process.env.VENDOR_IDS ?? "206,268,308")
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+      const sellerId = sellers[(userAnswerCount - 5) % sellers.length];
+      const updateFields: LeadUpdateFields = {
+        statusId: "IN_PROCESS",
+        ...(sellerId ? { assignedById: sellerId } : {}),
+      };
 
       updateFields.title = newTitle;
 
@@ -169,21 +206,32 @@ export class LeadIntelligenceService {
       }
 
       await this.bitrix24.updateLead(leadId, updateFields);
-      this.logger.log(`Lead ${leadId} updated with ${extracted.camposLlenos} fields → IN_PROCESS`);
+      this.logger.log(
+        `Lead ${leadId} updated with ${extracted.camposLlenos} fields → IN_PROCESS`,
+      );
       InternalController.lastUpdate = {
-        at: new Date().toISOString(), leadId, contactName, vendorName,
+        at: new Date().toISOString(),
+        leadId,
+        contactName,
+        vendorName,
         historyLength: history.length,
-        extracted: extracted as unknown as Record<string, unknown> ?? null,
-        camposLlenos: extracted.camposLlenos, updated: true,
+        extracted: (extracted as unknown as Record<string, unknown>) ?? null,
+        camposLlenos: extracted.camposLlenos,
+        updated: true,
       };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`Failed to update lead ${leadId}: ${msg}`);
       InternalController.lastUpdate = {
-        at: new Date().toISOString(), leadId, contactName, vendorName,
+        at: new Date().toISOString(),
+        leadId,
+        contactName,
+        vendorName,
         historyLength: history.length,
-        extracted: extracted as unknown as Record<string, unknown> ?? null,
-        camposLlenos: extracted.camposLlenos, updated: false, error: msg,
+        extracted: (extracted as unknown as Record<string, unknown>) ?? null,
+        camposLlenos: extracted.camposLlenos,
+        updated: false,
+        error: msg,
       };
     }
 
@@ -214,7 +262,10 @@ ${userMessages}`;
 
     try {
       const response = await this.ai.chat([
-        { role: "system", content: "Eres un extractor de datos. Responde solo JSON." },
+        {
+          role: "system",
+          content: "Eres un extractor de datos. Responde solo JSON.",
+        },
         { role: "user", content: prompt },
       ]);
 
@@ -227,13 +278,25 @@ ${userMessages}`;
       let camposLlenos = 0;
 
       const result: ExtractedData = { camposLlenos: 0 };
-      if (data["rubro"]) { result.rubro = data["rubro"]!; camposLlenos++; }
-      if (data["espacio"]) { result.espacio = data["espacio"]!; camposLlenos++; }
+      if (data["rubro"]) {
+        result.rubro = data["rubro"]!;
+        camposLlenos++;
+      }
+      if (data["espacio"]) {
+        result.espacio = data["espacio"]!;
+        camposLlenos++;
+      }
       if (data["estado"] || data["ciudad"]) camposLlenos++;
       if (data["estado"]) result.estado = data["estado"]!;
       if (data["ciudad"]) result.ciudad = data["ciudad"]!;
-      if (data["medidas"]) { result.medidas = data["medidas"]!; camposLlenos++; }
-      if (data["producto"]) { result.producto = data["producto"]!; camposLlenos++; }
+      if (data["medidas"]) {
+        result.medidas = data["medidas"]!;
+        camposLlenos++;
+      }
+      if (data["producto"]) {
+        result.producto = data["producto"]!;
+        camposLlenos++;
+      }
       result.camposLlenos = camposLlenos;
 
       return result;

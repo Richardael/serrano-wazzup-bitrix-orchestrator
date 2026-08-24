@@ -38,11 +38,14 @@ const CATALOG_REPOSITORY = "CATALOG_REPOSITORY";
 const CONVERSATION_STATE = "CONVERSATION_STATE";
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    ScheduleModule.forRoot(),
+  imports: [ConfigModule.forRoot({ isGlobal: true }), ScheduleModule.forRoot()],
+  controllers: [
+    HealthController,
+    WazzupWebhookController,
+    WazzupIngestController,
+    InternalController,
+    BotIntegrationController,
   ],
-  controllers: [HealthController, WazzupWebhookController, WazzupIngestController, InternalController, BotIntegrationController],
   providers: [
     AppConfig,
     {
@@ -84,16 +87,20 @@ const CONVERSATION_STATE = "CONVERSATION_STATE";
         bitrix24: Bitrix24HttpAdapter,
         eventRepo: PgEventRepository,
         phoneLinkRepo: PgPhoneLinkRepository,
-        counterRepo: PgAssignmentCounterRepository,
         queue: PgQueueAdapter,
       ) =>
-        new ProcessIncomingMessageUseCase(config, bitrix24, eventRepo, phoneLinkRepo, counterRepo, queue),
+        new ProcessIncomingMessageUseCase(
+          config,
+          bitrix24,
+          eventRepo,
+          phoneLinkRepo,
+          queue,
+        ),
       inject: [
         AppConfig,
         BITRIX24_PORT,
         EVENT_REPOSITORY,
         PHONE_LINK_REPOSITORY,
-        ASSIGNMENT_COUNTER_REPOSITORY,
         QUEUE_PORT,
       ],
     },
@@ -108,8 +115,27 @@ const CONVERSATION_STATE = "CONVERSATION_STATE";
         chatbot: ChatbotService,
         catalogChatbot: CatalogChatbotService,
         wazzup: WazzupHttpAdapter,
-      ) => new IncomingMessageHandler(config, eventRepo, queue, bitrix24, phoneLinkRepo, chatbot, catalogChatbot, wazzup),
-      inject: [AppConfig, EVENT_REPOSITORY, QUEUE_PORT, BITRIX24_PORT, PHONE_LINK_REPOSITORY, ChatbotService, CatalogChatbotService, WAZZUP_PORT],
+      ) =>
+        new IncomingMessageHandler(
+          config,
+          eventRepo,
+          queue,
+          bitrix24,
+          phoneLinkRepo,
+          chatbot,
+          catalogChatbot,
+          wazzup,
+        ),
+      inject: [
+        AppConfig,
+        EVENT_REPOSITORY,
+        QUEUE_PORT,
+        BITRIX24_PORT,
+        PHONE_LINK_REPOSITORY,
+        ChatbotService,
+        CatalogChatbotService,
+        WAZZUP_PORT,
+      ],
     },
     MessageWorker,
     MigrationRunner,
