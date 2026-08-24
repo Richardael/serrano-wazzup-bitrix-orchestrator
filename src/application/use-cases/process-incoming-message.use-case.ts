@@ -45,6 +45,10 @@ export class ProcessIncomingMessageUseCase {
       await this.eventRepo.updateStatus(eventId, "PROCESSING");
 
       const normalizedPhone = message.contact.normalizedPhone;
+      const contactId = await this.bitrix24.upsertContact({
+        name: message.contact.displayName?.trim() || normalizedPhone,
+        phone: normalizedPhone,
+      });
 
       const leads = await this.bitrix24.findLeadsByPhone(normalizedPhone);
 
@@ -52,7 +56,8 @@ export class ProcessIncomingMessageUseCase {
         this.logger.log(
           `No leads found for ${maskedPhone}. Creating new lead.`,
         );
-        await this.createNewLead(message, eventId, normalizedPhone);
+        await this.createNewLead(message, eventId, normalizedPhone, contactId);
+        await this.eventRepo.updateStatus(eventId, "COMPLETED");
         return;
       }
 
@@ -67,12 +72,13 @@ export class ProcessIncomingMessageUseCase {
         this.logger.log(
           `Reusing active lead ${activeLeads[0]!.id} for ${maskedPhone}`,
         );
+        await this.bitrix24.updateLead(activeLeads[0]!.id, { contactId });
         await this.linkPhoneToLead(normalizedPhone, activeLeads[0]!.id);
       } else if (activeLeads.length === 0 && inactiveLeads.length > 0) {
         this.logger.log(
           `All leads closed for ${maskedPhone}. Creating new lead.`,
         );
-        await this.createNewLead(message, eventId, normalizedPhone);
+        await this.createNewLead(message, eventId, normalizedPhone, contactId);
       } else if (activeLeads.length > 1) {
         this.logger.warn(
           `Multiple active leads (${activeLeads.length}) for ${maskedPhone}. Flagging manual review.`,
@@ -84,7 +90,7 @@ export class ProcessIncomingMessageUseCase {
           `Found ${activeLeads.length} active leads for phone: [${activeLeads.map((l) => l.id).join(", ")}]`,
         );
       } else {
-        await this.createNewLead(message, eventId, normalizedPhone);
+        await this.createNewLead(message, eventId, normalizedPhone, contactId);
       }
 
       await this.eventRepo.updateStatus(eventId, "COMPLETED");
@@ -106,6 +112,7 @@ export class ProcessIncomingMessageUseCase {
     message: NormalizedIncomingMessage,
     eventId: string,
     normalizedPhone: string,
+    contactId: string,
   ): Promise<void> {
     const title = this.buildLeadTitle(message);
 
@@ -115,8 +122,9 @@ export class ProcessIncomingMessageUseCase {
       lastName: null,
       phone: normalizedPhone,
       email: null,
-      statusId: this.config.env.BITRIX24_LEAD_INITIAL_STATUS,
+      statusId: "NEW",
       sourceId: "WHATSAPP",
+      contactId,
       comments: `[WhatsApp] Mensaje recibido — ${new Date().toISOString()}`,
       ufFields: {},
     });
