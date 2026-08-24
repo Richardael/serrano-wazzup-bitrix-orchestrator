@@ -13,6 +13,7 @@ export interface Bitrix24Port {
 export interface LeadUpdateFields {
   title?: string;
   statusId?: string;
+  assignedById?: string;
   comments?: string | null;
   ufFields?: Record<string, string | number | boolean | null>;
   extraParams?: Record<string, string>;
@@ -26,7 +27,7 @@ export interface CreateLeadInput {
   email: string | null;
   statusId: string;
   sourceId: string;
-  assignedById: string;
+  assignedById?: string;
   comments: string | null;
   ufFields: Record<string, string | number | boolean | null>;
 }

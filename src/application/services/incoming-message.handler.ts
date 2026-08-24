@@ -8,7 +8,10 @@ import { Bitrix24Port } from "../../application/ports/bitrix24.port";
 import { PhoneLinkRepository } from "../../application/ports/phone-link-repository.port";
 import { WazzupWebhookPayload } from "../../interfaces/webhooks/wazzup-webhook.schema";
 import { NormalizedIncomingMessage } from "../../domain/messages/normalized-message";
-import { normalizePhoneNumber, maskPhoneForLog } from "../../infrastructure/config/phone-normalizer";
+import {
+  normalizePhoneNumber,
+  maskPhoneForLog,
+} from "../../infrastructure/config/phone-normalizer";
 import { ChatbotService } from "./chatbot.service";
 import { CatalogChatbotService } from "./catalog-chatbot.service";
 import { WazzupPort } from "../../application/ports/wazzup.port";
@@ -27,7 +30,11 @@ function vendorShortName(vendorId: number): string {
   return VENDOR_NAMES[vendorId] ?? String(vendorId);
 }
 
-function buildLeadTitle(contactName: string | null, phone: string, vendorId: number): string {
+function buildLeadTitle(
+  contactName: string | null,
+  phone: string,
+  vendorId: number,
+): string {
   const name = contactName ?? phone;
   const vendor = vendorShortName(vendorId);
   return `WhatsApp / ${name} / ${vendor}`;
@@ -45,7 +52,6 @@ interface ProcessMessageJobPayload {
 @Injectable()
 export class IncomingMessageHandler {
   private readonly logger = new Logger(IncomingMessageHandler.name);
-  private vendorRoundRobin = 0;
   private lastVendorId = 0;
 
   constructor(
@@ -59,7 +65,9 @@ export class IncomingMessageHandler {
     @Inject("WAZZUP_PORT") private readonly wazzupPort: WazzupPort,
   ) {}
 
-  async handle(payload: WazzupWebhookPayload): Promise<{ status: string; eventId?: string }> {
+  async handle(
+    payload: WazzupWebhookPayload,
+  ): Promise<{ status: string; eventId?: string }> {
     if (payload.test === true) {
       this.logger.log("Test webhook received — acknowledged");
       return { status: "test_acknowledged" };
@@ -72,21 +80,44 @@ export class IncomingMessageHandler {
       return { status: "invalid_payload" };
     }
 
-    const maskedPhone = maskPhoneForLog(normalizedMessage.contact.normalizedPhone);
-    const chatId = (payload as Record<string, unknown>)["chatId"] as string | undefined;
-    const contentObj = ((payload as Record<string, unknown>)["content"] ?? {}) as Record<string, unknown>;
+    const maskedPhone = maskPhoneForLog(
+      normalizedMessage.contact.normalizedPhone,
+    );
+    const chatId = (payload as Record<string, unknown>)["chatId"] as
+      string | undefined;
+    const contentObj = ((payload as Record<string, unknown>)["content"] ??
+      {}) as Record<string, unknown>;
     const messageText = contentObj["text"] as string | undefined;
-    const channelId = (payload as Record<string, unknown>)["channelId"] as string | undefined;
+    const channelId = (payload as Record<string, unknown>)["channelId"] as
+      string | undefined;
 
     try {
-      const result = await this.handleWithDb(payload, normalizedMessage, maskedPhone);
-      await this.callChatbot(result, normalizedMessage, messageText, chatId, channelId);
+      const result = await this.handleWithDb(
+        payload,
+        normalizedMessage,
+        maskedPhone,
+      );
+      await this.callChatbot(
+        result,
+        normalizedMessage,
+        messageText,
+        chatId,
+        channelId,
+      );
       return result;
     } catch (dbErr: unknown) {
       const dbMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
-      this.logger.warn(`DB unavailable (${dbMsg}) — processing message directly for ${maskedPhone}`);
+      this.logger.warn(
+        `DB unavailable (${dbMsg}) — processing message directly for ${maskedPhone}`,
+      );
       const result = await this.handleDirect(normalizedMessage, maskedPhone);
-      await this.callChatbot(result, normalizedMessage, messageText, chatId, channelId);
+      await this.callChatbot(
+        result,
+        normalizedMessage,
+        messageText,
+        chatId,
+        channelId,
+      );
       return result;
     }
   }
@@ -106,19 +137,39 @@ export class IncomingMessageHandler {
     const isNew = result.status === "lead_created";
 
     if (this.config.env.CATALOG_CHATBOT_ENABLED) {
-      const catalogResponse = await this.catalogChatbot.handleMessage(
-        msg.contact.displayName, messageText ?? "", chatId, channelId, this.lastVendorId, leadId,
-      ).catch((e: unknown) => { this.logger.error(`Catalog chatbot error: ${e}`); return null; });
+      const catalogResponse = await this.catalogChatbot
+        .handleMessage(
+          msg.contact.displayName,
+          messageText ?? "",
+          chatId,
+          channelId,
+          this.lastVendorId,
+          leadId,
+        )
+        .catch((e: unknown) => {
+          this.logger.error(`Catalog chatbot error: ${e}`);
+          return null;
+        });
 
       if (catalogResponse) {
-        await this.wazzupPort.sendMessage({ chatId, channelId, text: catalogResponse }).catch(() => {});
+        await this.wazzupPort
+          .sendMessage({ chatId, channelId, text: catalogResponse })
+          .catch(() => {});
         return;
       }
     }
 
-    this.chatbot.handleMessage(
-      msg.contact.displayName, messageText ?? "", chatId, channelId, this.lastVendorId, isNew, leadId,
-    ).catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
+    this.chatbot
+      .handleMessage(
+        msg.contact.displayName,
+        messageText ?? "",
+        chatId,
+        channelId,
+        this.lastVendorId,
+        isNew,
+        leadId,
+      )
+      .catch((e: unknown) => this.logger.error(`Chatbot error: ${e}`));
   }
 
   private async handleWithDb(
@@ -131,14 +182,23 @@ export class IncomingMessageHandler {
     const since = new Date(Date.now() - EVENT_RETENTION_WINDOW_MS);
 
     if (normalizedMessage.providerEventId) {
-      const existing = await this.eventRepo.findByProviderEventId(PROVIDER, normalizedMessage.providerEventId);
+      const existing = await this.eventRepo.findByProviderEventId(
+        PROVIDER,
+        normalizedMessage.providerEventId,
+      );
       if (existing) {
-        this.logger.log(`Duplicate event ${normalizedMessage.providerEventId} — skipping`);
+        this.logger.log(
+          `Duplicate event ${normalizedMessage.providerEventId} — skipping`,
+        );
         return { status: "duplicate", eventId: existing.id };
       }
     }
 
-    const hashDuplicate = await this.eventRepo.findByPayloadHash(PROVIDER, payloadHash, since);
+    const hashDuplicate = await this.eventRepo.findByPayloadHash(
+      PROVIDER,
+      payloadHash,
+      since,
+    );
     if (hashDuplicate) {
       this.logger.log(`Hash duplicate for ${maskedPhone} — skipping`);
       return { status: "duplicate", eventId: hashDuplicate.id };
@@ -163,7 +223,9 @@ export class IncomingMessageHandler {
       errorMessage: null,
     });
 
-    this.logger.log(`Event ${event.id} received for ${maskedPhone} [corr=${correlationId}]`);
+    this.logger.log(
+      `Event ${event.id} received for ${maskedPhone} [corr=${correlationId}]`,
+    );
 
     const jobPayload: ProcessMessageJobPayload = {
       eventId: event.id,
@@ -175,9 +237,15 @@ export class IncomingMessageHandler {
 
     await this.queue.enqueue("process-incoming-message", jobPayload);
 
-    const directResult = await this.handleDirect(normalizedMessage, maskedPhone);
+    const directResult = await this.handleDirect(
+      normalizedMessage,
+      maskedPhone,
+    );
 
-    return { status: directResult.status, eventId: directResult.eventId ?? event.id };
+    return {
+      status: directResult.status,
+      eventId: directResult.eventId ?? event.id,
+    };
   }
 
   private async handleDirect(
@@ -189,9 +257,10 @@ export class IncomingMessageHandler {
     const leads = await this.bitrix24.findLeadsByPhone(normalizedPhone);
 
     if (leads.length === 0) {
-      this.logger.log(`No leads for ${maskedPhone} — creating new lead directly`);
-      const vendorId = this.getNextVendor();
-      const title = buildLeadTitle(normalizedMessage.contact.displayName, normalizedPhone, vendorId);
+      this.logger.log(
+        `No leads for ${maskedPhone} — creating new lead directly`,
+      );
+      const title = `WhatsApp / ${normalizedMessage.contact.displayName ?? normalizedPhone}`;
 
       const leadId = await this.bitrix24.createLead({
         title,
@@ -201,26 +270,30 @@ export class IncomingMessageHandler {
         email: null,
         statusId: this.config.env.BITRIX24_LEAD_INITIAL_STATUS,
         sourceId: "WHATSAPP",
-        assignedById: String(vendorId),
         comments: `[WhatsApp] Mensaje recibido — ${new Date().toISOString()}`,
         ufFields: {},
       });
 
-      this.logger.log(`Created lead ${leadId} for ${maskedPhone}, vendor ${vendorId}`);
+      this.logger.log(`Created unassigned lead ${leadId} for ${maskedPhone}`);
       return { status: "lead_created", eventId: leadId };
     }
 
-    const activeLeads = leads.filter((l) => !INACTIVE_LEAD_STATUSES.has(l.statusId));
+    const activeLeads = leads.filter(
+      (l) => !INACTIVE_LEAD_STATUSES.has(l.statusId),
+    );
 
     if (activeLeads.length === 1) {
-      this.logger.log(`Reusing active lead ${activeLeads[0]!.id} for ${maskedPhone}`);
+      this.logger.log(
+        `Reusing active lead ${activeLeads[0]!.id} for ${maskedPhone}`,
+      );
       return { status: "lead_reused", eventId: activeLeads[0]!.id };
     }
 
     if (activeLeads.length === 0) {
-      this.logger.log(`All leads closed for ${maskedPhone} — creating new lead`);
-      const vendorId = this.getNextVendor();
-      const title = buildLeadTitle(normalizedMessage.contact.displayName, normalizedPhone, vendorId);
+      this.logger.log(
+        `All leads closed for ${maskedPhone} — creating new lead`,
+      );
+      const title = `WhatsApp / ${normalizedMessage.contact.displayName ?? normalizedPhone}`;
 
       const leadId = await this.bitrix24.createLead({
         title,
@@ -230,29 +303,23 @@ export class IncomingMessageHandler {
         email: null,
         statusId: this.config.env.BITRIX24_LEAD_INITIAL_STATUS,
         sourceId: "WHATSAPP",
-        assignedById: String(vendorId),
         comments: `[WhatsApp] Mensaje recibido — ${new Date().toISOString()}`,
         ufFields: {},
       });
 
-      this.logger.log(`Created lead ${leadId} for ${maskedPhone}`);
+      this.logger.log(`Created unassigned lead ${leadId} for ${maskedPhone}`);
       return { status: "lead_created", eventId: leadId };
     }
 
-    this.logger.warn(`Multiple active leads (${activeLeads.length}) for ${maskedPhone}`);
+    this.logger.warn(
+      `Multiple active leads (${activeLeads.length}) for ${maskedPhone}`,
+    );
     return { status: "manual_review" };
   }
 
-  private getNextVendor(): number {
-    const vendorIds = this.config.vendorIds;
-    const index = this.vendorRoundRobin % vendorIds.length;
-    this.vendorRoundRobin++;
-    const vendorId = vendorIds[index] ?? vendorIds[0] ?? 1;
-    this.lastVendorId = vendorId;
-    return vendorId;
-  }
-
-  private normalizePayload(payload: WazzupWebhookPayload): NormalizedIncomingMessage | null {
+  private normalizePayload(
+    payload: WazzupWebhookPayload,
+  ): NormalizedIncomingMessage | null {
     const rawPhone = payload.contact?.phone;
     if (!rawPhone) {
       this.logger.warn("No phone in webhook payload");
@@ -280,8 +347,12 @@ export class IncomingMessageHandler {
       },
       content: {
         hasText: Boolean(payload.content?.text),
-        textHash: payload.content?.text ? this.computeHash(payload.content.text) : null,
-        hasAttachments: Array.isArray(payload.content?.attachments) && payload.content!.attachments!.length > 0,
+        textHash: payload.content?.text
+          ? this.computeHash(payload.content.text)
+          : null,
+        hasAttachments:
+          Array.isArray(payload.content?.attachments) &&
+          payload.content!.attachments!.length > 0,
       },
       rawMetadata: null,
     };

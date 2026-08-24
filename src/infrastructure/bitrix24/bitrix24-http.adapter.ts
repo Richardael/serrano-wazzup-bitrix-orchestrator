@@ -1,6 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { AppConfig } from "../config/app.config";
-import { Bitrix24Port, CreateLeadInput, BitrixStatus, LeadUpdateFields } from "../../application/ports/bitrix24.port";
+import {
+  Bitrix24Port,
+  CreateLeadInput,
+  BitrixStatus,
+  LeadUpdateFields,
+} from "../../application/ports/bitrix24.port";
 import { LeadRecord } from "../../domain/leads/lead";
 import { maskPhoneForLog } from "../config/phone-normalizer";
 
@@ -36,7 +41,10 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
     };
     params["values[0]"] = normalizedPhone;
 
-    const data = await this.request<Record<string, number[]>>("crm.duplicate.findbycomm.json", params);
+    const data = await this.request<Record<string, number[]>>(
+      "crm.duplicate.findbycomm.json",
+      params,
+    );
 
     const leadIds = data.result?.["LEAD"] ?? [];
     const records: LeadRecord[] = [];
@@ -52,7 +60,10 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
   }
 
   async getLead(leadId: string): Promise<LeadRecord | null> {
-    const data = await this.request<Record<string, unknown>>("crm.lead.get.json", { id: leadId });
+    const data = await this.request<Record<string, unknown>>(
+      "crm.lead.get.json",
+      { id: leadId },
+    );
 
     if (!data.result) {
       return null;
@@ -77,9 +88,9 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
       TITLE: input.title,
       STATUS_ID: input.statusId,
       SOURCE_ID: input.sourceId,
-      ASSIGNED_BY_ID: input.assignedById,
       ...input.ufFields,
     };
+    if (input.assignedById) fields.ASSIGNED_BY_ID = input.assignedById;
 
     if (input.name) {
       fields["NAME"] = input.name;
@@ -104,7 +115,9 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
     const data = await this.request<number>("crm.lead.add.json", { fields });
 
     if (data.error) {
-      throw new Error(`Bitrix24 error: ${data.error} - ${data.error_description}`);
+      throw new Error(
+        `Bitrix24 error: ${data.error} - ${data.error_description}`,
+      );
     }
 
     return String(data.result);
@@ -118,6 +131,9 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
     }
     if (fields.statusId) {
       params["fields[STATUS_ID]"] = fields.statusId;
+    }
+    if (fields.assignedById) {
+      params["fields[ASSIGNED_BY_ID]"] = fields.assignedById;
     }
     if (fields.comments !== undefined) {
       params["fields[COMMENTS]"] = fields.comments;
@@ -142,10 +158,9 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
   }
 
   async getLeadStatuses(): Promise<BitrixStatus[]> {
-    const data = await this.request<Array<{ STATUS_ID: string; NAME: string; EXTRA?: { SEMANTICS?: string } }>>(
-      "crm.status.entity.items.json",
-      { ENTITY_ID: "STATUS" },
-    );
+    const data = await this.request<
+      Array<{ STATUS_ID: string; NAME: string; EXTRA?: { SEMANTICS?: string } }>
+    >("crm.status.entity.items.json", { ENTITY_ID: "STATUS" });
 
     return (data.result ?? []).map((s) => ({
       statusId: s.STATUS_ID,
@@ -155,10 +170,9 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
   }
 
   async getLeadSources(): Promise<BitrixStatus[]> {
-    const data = await this.request<Array<{ STATUS_ID: string; NAME: string; EXTRA?: { SEMANTICS?: string } }>>(
-      "crm.status.entity.items.json",
-      { ENTITY_ID: "SOURCE" },
-    );
+    const data = await this.request<
+      Array<{ STATUS_ID: string; NAME: string; EXTRA?: { SEMANTICS?: string } }>
+    >("crm.status.entity.items.json", { ENTITY_ID: "SOURCE" });
 
     return (data.result ?? []).map((s) => ({
       statusId: s.STATUS_ID,
@@ -167,7 +181,10 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
     }));
   }
 
-  private async request<T>(method: string, params?: Record<string, unknown>): Promise<BitrixResponse<T>> {
+  private async request<T>(
+    method: string,
+    params?: Record<string, unknown>,
+  ): Promise<BitrixResponse<T>> {
     const url = `${this.baseUrl}/${method}`;
     let lastError: Error | null = null;
 
@@ -189,14 +206,19 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
         const duration = Date.now() - start;
 
         if (response.status === 429) {
-          const retryAfter = parseInt(response.headers.get("Retry-After") ?? "5", 10);
+          const retryAfter = parseInt(
+            response.headers.get("Retry-After") ?? "5",
+            10,
+          );
           await this.delay(retryAfter * 1000 + Math.random() * 1000);
           continue;
         }
 
         if (!response.ok && response.status >= 500) {
           if (attempt < this.maxRetries - 1) {
-            await this.delay((Math.pow(2, attempt) * 1000) + Math.random() * 1000);
+            await this.delay(
+              Math.pow(2, attempt) * 1000 + Math.random() * 1000,
+            );
             continue;
           }
         }
@@ -207,7 +229,7 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
         lastError = err instanceof Error ? err : new Error(String(err));
 
         if (attempt < this.maxRetries - 1) {
-          await this.delay((Math.pow(2, attempt) * 1000) + Math.random() * 500);
+          await this.delay(Math.pow(2, attempt) * 1000 + Math.random() * 500);
         }
       }
     }
@@ -229,7 +251,9 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
         this.flattenParams(obj[i], `${prefix}[${i}]`, parts);
       }
     } else if (typeof obj === "object") {
-      for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      for (const [key, value] of Object.entries(
+        obj as Record<string, unknown>,
+      )) {
         const newPrefix = prefix ? `${prefix}[${key}]` : key;
         this.flattenParams(value, newPrefix, parts);
       }
@@ -250,7 +274,9 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
       return phoneField
         .filter(
           (p): p is { VALUE: string } =>
-            typeof p === "object" && p !== null && typeof (p as Record<string, unknown>)["VALUE"] === "string",
+            typeof p === "object" &&
+            p !== null &&
+            typeof (p as Record<string, unknown>)["VALUE"] === "string",
         )
         .map((p) => p.VALUE);
     }
@@ -261,7 +287,10 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
   private phoneMatches(phones: string[], normalizedPhone: string): boolean {
     return phones.some((phone) => {
       const stripped = phone.replace(/[\s\-().]/g, "");
-      return stripped === normalizedPhone || stripped === normalizedPhone.replace(/^\+/, "");
+      return (
+        stripped === normalizedPhone ||
+        stripped === normalizedPhone.replace(/^\+/, "")
+      );
     });
   }
 
