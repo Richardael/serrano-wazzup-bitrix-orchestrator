@@ -13,6 +13,7 @@ import { WazzupWebhookSchema } from "./wazzup-webhook.schema";
 import { IncomingMessageHandler } from "../../application/services/incoming-message.handler";
 import { AppConfig } from "../../infrastructure/config/app.config";
 import { Logger } from "@nestjs/common";
+import { bearerTokenMatches } from "../../infrastructure/security/secret-comparison";
 
 @Controller("webhooks/wazzup")
 export class WazzupWebhookController {
@@ -39,7 +40,9 @@ export class WazzupWebhookController {
       throw new UnsupportedMediaTypeException("Content-Type must be application/json");
     }
 
-    const token = authorization?.replace("Bearer ", "");
+    if (!bearerTokenMatches(authorization, this.config.env.WAZZUP_WEBHOOK_BEARER_TOKEN)) {
+      throw new UnauthorizedException("Invalid bearer token");
+    }
 
     const bodySize = JSON.stringify(body).length;
     if (bodySize > this.config.env.MAX_WEBHOOK_BODY_BYTES) {
@@ -56,10 +59,6 @@ export class WazzupWebhookController {
 
     if (isWazzupNative) {
       return this.handleWazzupNativePayload(body);
-    }
-
-    if (!token || token !== this.config.env.WAZZUP_WEBHOOK_BEARER_TOKEN) {
-      throw new UnauthorizedException("Invalid bearer token");
     }
 
     const parsed = WazzupWebhookSchema.safeParse(body);
