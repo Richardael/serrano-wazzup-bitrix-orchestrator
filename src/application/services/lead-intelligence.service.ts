@@ -114,7 +114,9 @@ export class LeadIntelligenceService {
       (turn) => turn.role === "user",
     ).length;
     const extracted = await this.extractData(history);
-    this.logger.log(`Extracted: ${JSON.stringify(extracted)}`);
+    this.logger.log(
+      `Extraction completed: camposLlenos=${extracted?.camposLlenos ?? 0}`,
+    );
 
     if (!extracted || extracted.camposLlenos < 3 || userAnswerCount < 5) {
       this.logger.warn(

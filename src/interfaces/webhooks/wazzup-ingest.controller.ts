@@ -53,7 +53,6 @@ export class WazzupIngestController {
       };
 
       this.logger.log(`RAW WAZZUP PAYLOAD keys: ${Object.keys(b).join(", ")}`);
-      this.logger.log(`RAW WAZZUP PAYLOAD: ${JSON.stringify(b).slice(0, 2000)}`);
 
       const messages = b["messages"] as Array<Record<string, unknown>> | undefined;
       let finalStatus = "no_messages";
@@ -62,7 +61,6 @@ export class WazzupIngestController {
         this.logger.log(`Processing ${messages.length} messages from array`);
         for (const msg of messages) {
           this.logger.log(`Message keys: ${Object.keys(msg).join(", ")}`);
-          this.logger.log(`Message: ${JSON.stringify(msg).slice(0, 500)}`);
 
           if (!this.shouldProcess(msg)) {
             this.logger.log(`Skipping message (outbound/echo/duplicate)`);
@@ -71,9 +69,7 @@ export class WazzupIngestController {
 
           const mappedPayload = this.mapToWebhookPayload(msg);
           if (mappedPayload) {
-            this.logger.log(`Mapped payload: ${JSON.stringify(mappedPayload).slice(0, 500)}`);
             const result = await this.handler.handle(mappedPayload);
-            this.logger.log(`Handler result: ${JSON.stringify(result)}`);
             finalStatus = result.status;
           } else {
             this.logger.warn("Could not map message to webhook payload — missing phone");
@@ -83,9 +79,7 @@ export class WazzupIngestController {
       } else {
         const mapped = this.mapToWebhookPayload(b);
         if (mapped) {
-          this.logger.log(`Single event mapped: ${JSON.stringify(mapped).slice(0, 500)}`);
           const result = await this.handler.handle(mapped);
-          this.logger.log(`Handler result: ${JSON.stringify(result)}`);
           finalStatus = result.status;
         } else {
           this.logger.warn(`Could not map event to webhook payload — keys: ${Object.keys(b).join(", ")}`);
@@ -111,8 +105,6 @@ export class WazzupIngestController {
       this.logger.warn(`Message without phone. Available keys: ${Object.keys(msg).join(", ")}`);
       return null;
     }
-
-    this.logger.log(`Extracted phone: ${String(phone)}`);
 
     const chatId = String(msg["chatId"] ?? msg["chat_id"] ?? contact["messengerChatId"] ?? msg["id"] ?? "");
     const channelId = String(msg["channelId"] ?? msg["channel_id"] ?? "");
