@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Headers, HttpCode, Logger, UnauthorizedException } from "@nestjs/common";
+import { Controller, Post, Body, Headers, HttpCode, Logger, UnauthorizedException, Query } from "@nestjs/common";
 import { IncomingMessageHandler } from "../../application/services/incoming-message.handler";
 import { InternalController } from "../http/internal.controller";
 import { BotInboundRelayService } from "../../infrastructure/bot/bot-inbound-relay.service";
@@ -20,8 +20,10 @@ export class WazzupIngestController {
   async ingest(
     @Body() body: unknown,
     @Headers("authorization") authorization?: string,
+    @Query("webhookToken") webhookToken?: string,
   ): Promise<{ status: string }> {
-    if (!bearerTokenMatches(authorization, this.config.env.WAZZUP_WEBHOOK_BEARER_TOKEN)) {
+    const suppliedAuthorization = authorization ?? (webhookToken ? `Bearer ${webhookToken}` : undefined);
+    if (!bearerTokenMatches(suppliedAuthorization, this.config.env.WAZZUP_WEBHOOK_BEARER_TOKEN)) {
       throw new UnauthorizedException("Invalid bearer token");
     }
 
