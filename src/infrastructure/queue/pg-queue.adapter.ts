@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { eq, and, lte, sql } from "drizzle-orm";
+import { eq, and, inArray, lte, sql } from "drizzle-orm";
 import { drizzle, PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { v4 as uuid } from "uuid";
@@ -75,7 +75,7 @@ export class PgQueueAdapter implements QueuePort {
       await tx
         .update(schema.processingJobs)
         .set({ status: "PROCESSING", lockedAt: now, lockedBy: WORKER_ID, attempts: sql`attempts + 1` })
-        .where(sql`${schema.processingJobs.id} IN (${ids.map((id) => `'${id}'`).join(",")})`);
+        .where(inArray(schema.processingJobs.id, ids));
 
       return jobs;
     });
