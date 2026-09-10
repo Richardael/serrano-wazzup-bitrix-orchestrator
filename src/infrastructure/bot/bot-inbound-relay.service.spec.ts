@@ -9,7 +9,9 @@ describe("BotInboundRelayService", () => {
   } as never;
 
   it("forwards only raw inbound messages", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(new Response("", { status: 200 }));
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(new Response("", { status: 200 }));
     const service = new BotInboundRelayService(config, fetchFn);
     const inbound = { messageId: "inbound-1", status: "inbound", text: "Hola" };
 
@@ -25,7 +27,9 @@ describe("BotInboundRelayService", () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
     const [url, request] = fetchFn.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("http://bot:3002/wazzup/internal/orchestrator-ingest");
-    expect(request.headers).toMatchObject({ Authorization: "Bearer shared-secret-value" });
+    expect(request.headers).toMatchObject({
+      Authorization: "Bearer shared-secret-value",
+    });
     expect(request.body).toBe(JSON.stringify({ messages: [inbound] }));
   });
 
@@ -41,5 +45,27 @@ describe("BotInboundRelayService", () => {
     });
 
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("propagates the WhatsApp profile name without empty name fields", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(new Response("", { status: 200 }));
+    const service = new BotInboundRelayService(config, fetchFn);
+
+    await service.relayInbound({
+      chat: { name: "Brayan Gamboa" },
+      messages: [{ messageId: "inbound-2", status: "inbound", text: "Hola" }],
+    });
+
+    const request = fetchFn.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(request.body)) as {
+      messages: Array<Record<string, unknown>>;
+    };
+    expect(body.messages[0]).toMatchObject({
+      authorName: "Brayan Gamboa",
+      chatName: "Brayan Gamboa",
+      contactName: "Brayan Gamboa",
+    });
   });
 });
