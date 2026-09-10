@@ -15,13 +15,15 @@ export class BotInboundRelayService {
     if (!this.config.env.BOT_INTERNAL_BASE_URL) return;
 
     const messages = Array.isArray(payload["messages"])
-      ? payload["messages"].filter(
-          (message): message is Record<string, unknown> =>
-            typeof message === "object" &&
-            message !== null &&
-            message["status"] === "inbound" &&
-            message["isEcho"] !== true,
-        )
+      ? payload["messages"]
+          .filter(
+            (message): message is Record<string, unknown> =>
+              typeof message === "object" &&
+              message !== null &&
+              message["status"] === "inbound" &&
+              message["isEcho"] !== true,
+          )
+          .map((message) => this.withProfileName(message, payload))
       : [];
     if (messages.length === 0) return;
 
@@ -46,13 +48,75 @@ export class BotInboundRelayService {
         if (response.ok) return;
         lastError = new Error(`Bot relay failed with HTTP ${response.status}`);
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error("Unknown bot relay error");
+        lastError =
+          error instanceof Error ? error : new Error("Unknown bot relay error");
       } finally {
         clearTimeout(timeout);
       }
       await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
     }
 
-    this.logger.warn(`Bot relay failed after retries: ${lastError?.message ?? "unknown error"}`);
+    this.logger.warn(
+      `Bot relay failed after retries: ${lastError?.message ?? "unknown error"}`,
+    );
+  }
+
+  private withProfileName(
+    message: Record<string, unknown>,
+    payload: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const nestedMessageChat = this.objectValue(message["chat"]);
+    const nestedPayloadChat = this.objectValue(payload["chat"]);
+    const nestedPayloadContact = this.objectValue(payload["contact"]);
+    const contacts = Array.isArray(payload["contacts"])
+      ? payload["contacts"].filter(
+          (contact): contact is Record<string, unknown> =>
+            typeof contact === "object" && contact !== null,
+        )
+      : [];
+    const contactName = this.firstText(
+      contacts.map((contact) => contact["name"]),
+    );
+    const authorName = this.firstText([
+      message["authorName"],
+      message["chatName"],
+      nestedMessageChat?.["name"],
+      message["contactName"],
+      nestedPayloadChat?.["name"],
+      nestedPayloadContact?.["name"],
+      contactName,
+    ]);
+    if (!authorName) return message;
+
+    return {
+      ...message,
+      authorName: this.firstText([message["authorName"], authorName]),
+      chatName: this.firstText([
+        message["chatName"],
+        nestedMessageChat?.["name"],
+        nestedPayloadChat?.["name"],
+        authorName,
+      ]),
+      contactName: this.firstText([
+        message["contactName"],
+        contactName,
+        authorName,
+      ]),
+    };
+  }
+
+  private objectValue(value: unknown): Record<string, unknown> | undefined {
+    return typeof value === "object" && value !== null
+      ? (value as Record<string, unknown>)
+      : undefined;
+  }
+
+  private firstText(values: unknown[]): string | undefined {
+    return values
+      .find(
+        (value): value is string =>
+          typeof value === "string" && value.trim().length > 0,
+      )
+      ?.trim();
   }
 }
