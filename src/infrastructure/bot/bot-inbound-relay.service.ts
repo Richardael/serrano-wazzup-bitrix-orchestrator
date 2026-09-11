@@ -20,7 +20,7 @@ export class BotInboundRelayService {
             (message): message is Record<string, unknown> =>
               typeof message === "object" &&
               message !== null &&
-              message["status"] === "inbound" &&
+              this.isInboundMessage(message) &&
               message["isEcho"] !== true,
           )
           .map((message) => this.withProfileName(message, payload))
@@ -28,7 +28,16 @@ export class BotInboundRelayService {
     if (messages.length === 0) return;
 
     const { statuses: _statuses, ...rawInboundPayload } = payload;
-    const body: BotInboundWazzupPayload = { ...rawInboundPayload, messages };
+    const profileName = this.firstText(messages.flatMap((message) => [
+      message["authorName"],
+      message["chatName"],
+      message["contactName"],
+    ]));
+    const body: BotInboundWazzupPayload = {
+      ...rawInboundPayload,
+      ...(profileName ? { authorName: profileName, chatName: profileName } : {}),
+      messages,
+    };
     const url = `${this.config.env.BOT_INTERNAL_BASE_URL.replace(/\/$/, "")}/wazzup/internal/orchestrator-ingest`;
     let lastError: Error | undefined;
 
@@ -66,6 +75,7 @@ export class BotInboundRelayService {
     payload: Record<string, unknown>,
   ): Record<string, unknown> {
     const nestedMessageChat = this.objectValue(message["chat"]);
+    const nestedMessageContact = this.objectValue(message["contact"]);
     const nestedPayloadChat = this.objectValue(payload["chat"]);
     const nestedPayloadContact = this.objectValue(payload["contact"]);
     const contacts = Array.isArray(payload["contacts"])
@@ -82,6 +92,7 @@ export class BotInboundRelayService {
       message["chatName"],
       nestedMessageChat?.["name"],
       message["contactName"],
+      nestedMessageContact?.["name"],
       nestedPayloadChat?.["name"],
       nestedPayloadContact?.["name"],
       contactName,
@@ -118,5 +129,10 @@ export class BotInboundRelayService {
           typeof value === "string" && value.trim().length > 0,
       )
       ?.trim();
+  }
+
+  private isInboundMessage(message: Record<string, unknown>): boolean {
+    if (message["isEcho"] === true) return false;
+    return message["status"] === "inbound" || message["direction"] === "inbound" || message["type"] === "incoming";
   }
 }
