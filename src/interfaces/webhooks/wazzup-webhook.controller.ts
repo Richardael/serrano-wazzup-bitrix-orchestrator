@@ -14,6 +14,7 @@ import { IncomingMessageHandler } from "../../application/services/incoming-mess
 import { AppConfig } from "../../infrastructure/config/app.config";
 import { Logger } from "@nestjs/common";
 import { bearerTokenMatches } from "../../infrastructure/security/secret-comparison";
+import { BotInboundRelayService } from "../../infrastructure/bot/bot-inbound-relay.service";
 
 @Controller("webhooks/wazzup")
 export class WazzupWebhookController {
@@ -22,6 +23,7 @@ export class WazzupWebhookController {
   constructor(
     private readonly handler: IncomingMessageHandler,
     private readonly config: AppConfig,
+    private readonly botRelay: BotInboundRelayService,
   ) {}
 
   @Post(":webhookId")
@@ -51,6 +53,14 @@ export class WazzupWebhookController {
 
     const isWazzupNative = this.isWazzupNativePayload(body);
     const isTestPing = this.isTestPing(body);
+
+    if (isWazzupNative) {
+      this.logger.debug(`Wazzup payload: ${JSON.stringify(this.sanitizePayload(body))}`);
+      void this.botRelay.relayInbound(body as Record<string, unknown>).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "unknown error";
+        this.logger.warn(`Bot relay failed without affecting Wazzup processing: ${message}`);
+      });
+    }
 
     if (isTestPing) {
       this.logger.log("Wazzup verification ping received");
@@ -119,5 +129,17 @@ export class WazzupWebhookController {
         attachments: msg["attachments"] ?? msg["media"] ?? [],
       },
     };
+  }
+
+  private sanitizePayload(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map((item) => this.sanitizePayload(item));
+    if (!value || typeof value !== "object") return value;
+    const result: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+      result[key] = key === "text" || key === "body" || key === "message"
+        ? "[REDACTED]"
+        : this.sanitizePayload(item);
+    }
+    return result;
   }
 }

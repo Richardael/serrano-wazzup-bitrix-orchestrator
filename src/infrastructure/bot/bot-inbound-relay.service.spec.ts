@@ -67,5 +67,40 @@ describe("BotInboundRelayService", () => {
       chatName: "Brayan Gamboa",
       contactName: "Brayan Gamboa",
     });
+    expect(body).toMatchObject({ authorName: "Brayan Gamboa", chatName: "Brayan Gamboa" });
+  });
+
+  it("reads the profile name from the native message contact", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("", { status: 200 }));
+    const service = new BotInboundRelayService(config, fetchFn);
+
+    await service.relayInbound({
+      messages: [{ messageId: "inbound-3", status: "inbound", text: "Hola", contact: { name: "Ana Native" } }],
+    });
+
+    const request = fetchFn.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(request.body)) as Record<string, unknown>;
+    expect(body).toMatchObject({ authorName: "Ana Native", chatName: "Ana Native" });
+    expect((body.messages as Array<Record<string, unknown>>)[0]).toMatchObject({
+      authorName: "Ana Native",
+      chatName: "Ana Native",
+      contactName: "Ana Native",
+    });
+  });
+
+  it("relays native inbound messages identified by direction or type", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("", { status: 200 }));
+    const service = new BotInboundRelayService(config, fetchFn);
+
+    await service.relayInbound({
+      messages: [
+        { messageId: "direction-1", direction: "inbound", text: "Hola" },
+        { messageId: "type-1", type: "incoming", text: "Hola 2" },
+      ],
+    });
+
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    const request = fetchFn.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(request.body)).messages).toHaveLength(2);
   });
 });
