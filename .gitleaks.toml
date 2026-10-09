@@ -1,0 +1,13 @@
+title = "Serrano orchestrator secret scanning"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Explicit placeholders in the environment example"
+paths = ['''\.env\.example$''']
+regexes = [
+  '''YOUR_[A-Z0-9_]+''',
+  '''GENERATE_A_LONG_RANDOM_SECRET''',
+  '''postgresql://USER:PASSWORD@HOST:5432/DATABASE''',
+]
