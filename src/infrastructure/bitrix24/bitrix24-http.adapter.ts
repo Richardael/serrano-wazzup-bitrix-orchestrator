@@ -8,7 +8,7 @@ import {
   UpsertContactInput,
 } from "../../application/ports/bitrix24.port";
 import { LeadRecord } from "../../domain/leads/lead";
-import { maskPhoneForLog } from "../config/phone-normalizer";
+import { maskPhoneForLog, phoneLookupVariants } from "../config/phone-normalizer";
 
 interface BitrixResponse<T> {
   result: T;
@@ -65,7 +65,9 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
       entity_type: "LEAD",
       type: "PHONE",
     };
-    params["values[0]"] = normalizedPhone;
+    phoneLookupVariants(normalizedPhone).forEach((variant, i) => {
+      params[`values[${i}]`] = variant;
+    });
 
     const data = await this.request<Record<string, number[]>>(
       "crm.duplicate.findbycomm.json",

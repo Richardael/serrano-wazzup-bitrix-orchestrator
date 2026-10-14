@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizePhoneNumber, maskPhoneForLog } from "../../src/infrastructure/config/phone-normalizer";
+import { normalizePhoneNumber, maskPhoneForLog, phoneLookupVariants } from "../../src/infrastructure/config/phone-normalizer";
 
 describe("normalizePhoneNumber", () => {
   it("normalizes Venezuela mobile number", () => {
@@ -46,5 +46,24 @@ describe("maskPhoneForLog", () => {
 
   it("masks short numbers", () => {
     expect(maskPhoneForLog("12345")).toBe("***");
+  });
+});
+
+describe("phoneLookupVariants", () => {
+  it("covers the ways a Venezuelan number is stored in Bitrix", () => {
+    expect(phoneLookupVariants("+584122187719")).toEqual([
+      "584122187719", // +58...
+      "04122187719", // 0412... y +0412...
+      "5804122187719", // +580412... (un 0 de más)
+      "4122187719", // sin prefijo
+    ]);
+  });
+
+  it("returns only the digits for a non-Venezuelan number", () => {
+    expect(phoneLookupVariants("+37125893011")).toEqual(["37125893011"]);
+  });
+
+  it("returns nothing for an empty value", () => {
+    expect(phoneLookupVariants("")).toEqual([]);
   });
 });
