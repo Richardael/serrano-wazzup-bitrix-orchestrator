@@ -34,6 +34,12 @@ export const envSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((v) => v === "true"),
+  // Cierra como duplicado el lead que crea la integracion nativa de Wazzup cuando
+  // el orquestador ya tiene el suyo. Se puede apagar sin redeploy de codigo.
+  WAZZUP_NATIVE_DEDUP_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
   CATALOG_HANDOFF_ENABLED: z
     .enum(["true", "false"])
     .default("true")

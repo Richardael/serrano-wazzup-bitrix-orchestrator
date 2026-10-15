@@ -15,6 +15,11 @@ import {
 import { ChatbotService } from "./chatbot.service";
 import { CatalogChatbotService } from "./catalog-chatbot.service";
 import { WazzupPort } from "../../application/ports/wazzup.port";
+import {
+  closeWazzupNativeDuplicates,
+  pickWazzupNativeDuplicates,
+  scheduleWazzupDuplicateSweep,
+} from "./wazzup-native-duplicates";
 
 const EVENT_RETENTION_WINDOW_MS = 5 * 60 * 1000;
 const PROVIDER = "WAZZUP";
@@ -280,12 +285,30 @@ export class IncomingMessageHandler {
       });
 
       this.logger.log(`Created unassigned lead ${leadId} for ${maskedPhone}`);
+      if (this.config.env.WAZZUP_NATIVE_DEDUP_ENABLED) {
+        scheduleWazzupDuplicateSweep(this.bitrix24, normalizedPhone, leadId, this.logger);
+      }
       return { status: "lead_created", eventId: leadId };
     }
 
-    const activeLeads = leads.filter(
+    let activeLeads = leads.filter(
       (l) => !INACTIVE_LEAD_STATUSES.has(l.statusId),
     );
+
+    // La integración nativa de Wazzup crea un lead propio junto al nuestro. Si ya
+    // hay otro lead activo, el de Wazzup sobra y se cierra antes de decidir.
+    if (this.config.env.WAZZUP_NATIVE_DEDUP_ENABLED) {
+      const redundantes = pickWazzupNativeDuplicates(activeLeads);
+      if (redundantes.length > 0) {
+        const cerrados = await closeWazzupNativeDuplicates(
+          this.bitrix24,
+          redundantes,
+          activeLeads,
+          this.logger,
+        );
+        activeLeads = activeLeads.filter((l) => !cerrados.has(l.id));
+      }
+    }
 
     if (activeLeads.length === 1) {
       this.logger.log(
@@ -315,6 +338,9 @@ export class IncomingMessageHandler {
       });
 
       this.logger.log(`Created unassigned lead ${leadId} for ${maskedPhone}`);
+      if (this.config.env.WAZZUP_NATIVE_DEDUP_ENABLED) {
+        scheduleWazzupDuplicateSweep(this.bitrix24, normalizedPhone, leadId, this.logger);
+      }
       return { status: "lead_created", eventId: leadId };
     }
 
