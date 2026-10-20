@@ -28,6 +28,10 @@ import { CatalogChatbotService } from "./application/services/catalog-chatbot.se
 import { BotInboundRelayService } from "./infrastructure/bot/bot-inbound-relay.service";
 import { BotIntegrationController } from "./interfaces/internal/bot-integration.controller";
 import { WAZZUP_PORT } from "./application/ports/wazzup.port";
+import { NOTIFICATION_MARKER_REPOSITORY } from "./application/ports/notification-marker.port";
+import { PgNotificationMarkerRepository } from "./infrastructure/database/repositories/pg-notification-marker.repository";
+import { NotificationRoutingService } from "./application/services/notification-routing.service";
+import { NotificationMarkerController } from "./interfaces/internal/notification-marker.controller";
 
 const BITRIX24_PORT = "BITRIX24_PORT";
 const EVENT_REPOSITORY = "EVENT_REPOSITORY";
@@ -45,6 +49,7 @@ const CONVERSATION_STATE = "CONVERSATION_STATE";
     WazzupIngestController,
     InternalController,
     BotIntegrationController,
+    NotificationMarkerController,
   ],
   providers: [
     AppConfig,
@@ -71,6 +76,16 @@ const CONVERSATION_STATE = "CONVERSATION_STATE";
     {
       provide: WAZZUP_PORT,
       useClass: WazzupHttpAdapter,
+    },
+    {
+      provide: NOTIFICATION_MARKER_REPOSITORY,
+      useClass: PgNotificationMarkerRepository,
+    },
+    {
+      provide: NotificationRoutingService,
+      useFactory: (config: AppConfig, repo: PgNotificationMarkerRepository) =>
+        new NotificationRoutingService(config, repo),
+      inject: [AppConfig, NOTIFICATION_MARKER_REPOSITORY],
     },
     {
       provide: CATALOG_REPOSITORY,

@@ -85,6 +85,15 @@ export class MigrationRunner implements OnModuleInit {
           "error_message" text
         );
 
+        CREATE TABLE IF NOT EXISTS "notification_markers" (
+          "phone_key" varchar(20) PRIMARY KEY NOT NULL,
+          "source" varchar(40) NOT NULL,
+          "message_id" varchar(120),
+          "sent_at" timestamp with time zone NOT NULL,
+          "reply_count" integer DEFAULT 0 NOT NULL,
+          "last_reply_at" timestamp with time zone
+        );
+        CREATE INDEX IF NOT EXISTS "idx_notification_markers_sent_at" ON "notification_markers" ("sent_at");
         CREATE INDEX IF NOT EXISTS "uq_provider_event" ON "integration_events" ("provider","provider_event_id");
         CREATE INDEX IF NOT EXISTS "idx_payload_dedup" ON "integration_events" ("provider","payload_hash","received_at");
       `;

@@ -68,4 +68,48 @@ describe("WazzupIngestController", () => {
     await expect(controller.ingest({ messages: [inbound] }, undefined, "webhook-secret-value"))
       .resolves.toEqual({ status: "processed" });
   });
+
+  describe("respuestas a notificaciones (un solo numero para leads y notificaciones)", () => {
+    const suppressedBy = (suppressMessage: Record<string, unknown>) => ({
+      partition: vi.fn().mockImplementation(async (messages: Array<Record<string, unknown>>) => ({
+        forward: messages.filter((m) => m !== suppressMessage),
+        suppressed: [{ message: suppressMessage, marker: { phoneKey: "584121234567", sentAt: new Date(), source: "appsb", messageId: null } }],
+      })),
+    });
+
+    it("la respuesta a una notificacion no llega al bot ni a Bitrix", async () => {
+      const handle = vi.fn();
+      const relayInbound = vi.fn().mockResolvedValue(undefined);
+      const reply = { ...inbound, messageId: "reply-1" };
+      const controller = new WazzupIngestController({ handle } as never, { relayInbound } as never, config as never, suppressedBy(reply) as never);
+
+      await expect(controller.ingest({ messages: [reply] }, "Bearer webhook-secret-value")).resolves.toEqual({ status: "notification_reply" });
+      expect(handle).not.toHaveBeenCalled();
+      expect(relayInbound).toHaveBeenCalledWith({ messages: [] });
+    });
+
+    it("si el webhook trae un lead y una respuesta a notificacion, solo el lead sigue", async () => {
+      const handle = vi.fn().mockResolvedValue({ status: "lead_created" });
+      const relayInbound = vi.fn().mockResolvedValue(undefined);
+      const reply = { ...inbound, messageId: "reply-1", chatId: "584121234567" };
+      const lead = { ...inbound, messageId: "lead-1", chatId: "584149998888", text: "Quiero cotizar" };
+      const controller = new WazzupIngestController({ handle } as never, { relayInbound } as never, config as never, suppressedBy(reply) as never);
+
+      await expect(controller.ingest({ messages: [reply, lead] }, "Bearer webhook-secret-value")).resolves.toEqual({ status: "lead_created" });
+      expect(handle).toHaveBeenCalledTimes(1);
+      expect(relayInbound).toHaveBeenCalledWith({ messages: [lead] });
+    });
+
+    it("sin supresion el webhook se reenvia intacto (mismo objeto, nada cambia)", async () => {
+      const handle = vi.fn().mockResolvedValue({ status: "processed" });
+      const relayInbound = vi.fn().mockResolvedValue(undefined);
+      const notifications = { partition: vi.fn().mockImplementation(async (m: unknown[]) => ({ forward: m, suppressed: [] })) };
+      const controller = new WazzupIngestController({ handle } as never, { relayInbound } as never, config as never, notifications as never);
+      const body = { messages: [inbound] };
+
+      await controller.ingest(body, "Bearer webhook-secret-value");
+      expect(relayInbound.mock.calls[0]![0]).toBe(body);
+      expect(handle).toHaveBeenCalledTimes(1);
+    });
+  });
 });

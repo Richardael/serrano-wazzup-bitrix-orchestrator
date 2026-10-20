@@ -48,6 +48,15 @@ export const envSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((v) => v === "true"),
+  // Notificaciones salientes (AppSB) desde el MISMO numero que atiende leads. AppSB
+  // registra cada envio; durante la ventana, la respuesta del cliente NO entra al
+  // flujo de leads (ni bot ni lead nuevo). Sin secreto el registro queda cerrado.
+  NOTIFICATION_API_SECRET: z.string().min(16).optional(),
+  NOTIFICATION_REPLY_WINDOW_HOURS: z.coerce.number().int().min(1).max(168).default(24),
+  NOTIFICATION_ROUTING_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
   CONVERSATION_STATE_TTL_MINUTES: z.coerce.number().int().positive().default(1440),
 }).refine(
   (env) => Boolean(env.BOT_INTERNAL_BASE_URL) === Boolean(env.ORCHESTRATOR_SHARED_SECRET),

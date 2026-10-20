@@ -25,6 +25,9 @@ export class AppConfig {
       WAZZUP_API_KEY: configService.get("WAZZUP_API_KEY"),
       BOT_INTERNAL_BASE_URL: configService.get("BOT_INTERNAL_BASE_URL"),
       ORCHESTRATOR_SHARED_SECRET: configService.get("ORCHESTRATOR_SHARED_SECRET"),
+      NOTIFICATION_API_SECRET: configService.get("NOTIFICATION_API_SECRET"),
+      NOTIFICATION_REPLY_WINDOW_HOURS: configService.get("NOTIFICATION_REPLY_WINDOW_HOURS"),
+      NOTIFICATION_ROUTING_ENABLED: configService.get("NOTIFICATION_ROUTING_ENABLED"),
     };
 
     const parsed = envSchema.parse(raw);

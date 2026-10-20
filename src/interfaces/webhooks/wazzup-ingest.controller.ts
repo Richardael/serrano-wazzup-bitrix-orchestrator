@@ -1,9 +1,10 @@
-import { Controller, Post, Body, Headers, HttpCode, Logger, UnauthorizedException, Query } from "@nestjs/common";
+import { Controller, Post, Body, Headers, HttpCode, Logger, UnauthorizedException, Query, Optional } from "@nestjs/common";
 import { IncomingMessageHandler } from "../../application/services/incoming-message.handler";
 import { InternalController } from "../http/internal.controller";
 import { BotInboundRelayService } from "../../infrastructure/bot/bot-inbound-relay.service";
 import { AppConfig } from "../../infrastructure/config/app.config";
 import { bearerTokenMatches } from "../../infrastructure/security/secret-comparison";
+import { NotificationRoutingService } from "../../application/services/notification-routing.service";
 
 @Controller("wazzup-ingest")
 export class WazzupIngestController {
@@ -13,6 +14,7 @@ export class WazzupIngestController {
     private readonly handler: IncomingMessageHandler,
     private readonly botRelay: BotInboundRelayService,
     private readonly config: AppConfig,
+    @Optional() private readonly notifications?: NotificationRoutingService,
   ) {}
 
   @Post()
@@ -40,8 +42,19 @@ export class WazzupIngestController {
         return { status: "ok" };
       }
 
+      // Un mismo numero atiende leads y envia notificaciones (AppSB). La respuesta a
+      // una notificacion reciente no debe entrar al flujo de leads: ni al bot ni a Bitrix.
+      const rawMessages = Array.isArray(b["messages"])
+        ? (b["messages"] as Array<Record<string, unknown>>)
+        : undefined;
+      const decision = rawMessages && this.notifications
+        ? await this.notifications.partition(rawMessages)
+        : undefined;
+      const suppressed = new Set<Record<string, unknown>>(decision?.suppressed.map((s) => s.message) ?? []);
+      const relayBody = suppressed.size > 0 && decision ? { ...b, messages: decision.forward } : b;
+
       // The relay is detached so bot availability cannot delay Wazzup or Bitrix processing.
-      void this.botRelay.relayInbound(b).catch((error: unknown) => {
+      void this.botRelay.relayInbound(relayBody).catch((error: unknown) => {
         const message = error instanceof Error ? error.message : "unknown error";
         this.logger.warn(`Bot relay failed without affecting ingest: ${message}`);
       });
@@ -57,13 +70,14 @@ export class WazzupIngestController {
       this.logger.log(`RAW WAZZUP PAYLOAD keys: ${Object.keys(b).join(", ")}`);
 
       const messages = b["messages"] as Array<Record<string, unknown>> | undefined;
-      let finalStatus = "no_messages";
+      let finalStatus = suppressed.size > 0 ? "notification_reply" : "no_messages";
 
       if (messages && messages.length > 0) {
         this.logger.log(`Processing ${messages.length} messages from array`);
         for (const msg of messages) {
           this.logger.log(`Message keys: ${Object.keys(msg).join(", ")}`);
 
+          if (suppressed.has(msg)) continue;
           if (!this.shouldProcess(msg)) {
             this.logger.log(`Skipping message (outbound/echo/duplicate)`);
             continue;
