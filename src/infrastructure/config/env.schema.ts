@@ -64,6 +64,11 @@ export const envSchema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((v) => v === "true"),
+  // Etapas del lead en las que se avisa (STATUS_ID separados por coma). Por
+  // defecto, de "Conversacion Inicial" en adelante: Conversacion Inicial,
+  // Informacion Adicional y Calificacion Preliminar. La campana de reactivacion
+  // (UC_G1C4G0) se puede sumar aqui sin tocar codigo.
+  CLIENT_REPLY_ALERT_STATUSES: z.string().default("IN_PROCESS,ON_HOLD,RESTORED"),
   CONVERSATION_STATE_TTL_MINUTES: z.coerce.number().int().positive().default(1440),
 }).refine(
   (env) => Boolean(env.BOT_INTERNAL_BASE_URL) === Boolean(env.ORCHESTRATOR_SHARED_SECRET),

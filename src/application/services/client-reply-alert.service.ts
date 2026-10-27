@@ -18,7 +18,18 @@ export type ClientReplyAlertResult =
   | "already_open"
   | "in_flight"
   | "disabled"
+  | "stage_not_alerted"
   | "error";
+
+/** Etapas del lead en las que se avisa, desde la variable separada por comas. */
+export function parseAlertStatuses(raw: string): Set<string> {
+  return new Set(
+    raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+}
 
 /** Fecha en el formato que acepta Bitrix (ISO 8601 con zona, sin milisegundos). */
 export function bitrixDatetime(date: Date): string {
@@ -31,6 +42,11 @@ export function bitrixDatetime(date: Date): string {
  * Crea una actividad pendiente ("to-do") con vencimiento inmediato: Bitrix la
  * cuenta en el contador rojo de la tarjeta del Kanban y del lead, y la vendedora
  * la ve sin abrir el chat. Al completarla, el contador se apaga.
+ *
+ * Solo en leads que ya llegaron a "Conversación Inicial" o una etapa posterior
+ * (`CLIENT_REPLY_ALERT_STATUSES`): son los que ya trabaja una vendedora. En las
+ * etapas de intentos de contacto el lead todavía no tiene una conversación que
+ * retomar.
  *
  * Mientras haya una alerta abierta no se crea otra: varios mensajes seguidos del
  * mismo cliente dejan una sola actividad, no una por mensaje.
@@ -53,8 +69,13 @@ export class ClientReplyAlertService {
     return this.config.env.CLIENT_REPLY_ALERT_ENABLED;
   }
 
+  private get etapas(): Set<string> {
+    return parseAlertStatuses(this.config.env.CLIENT_REPLY_ALERT_STATUSES);
+  }
+
   async notify(lead: LeadRecord): Promise<ClientReplyAlertResult> {
     if (!this.enabled) return "disabled";
+    if (!this.etapas.has(lead.statusId)) return "stage_not_alerted";
     if (this.enCurso.has(lead.id)) return "in_flight";
 
     this.enCurso.add(lead.id);

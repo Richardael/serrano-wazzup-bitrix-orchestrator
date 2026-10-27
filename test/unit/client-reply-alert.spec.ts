@@ -27,7 +27,13 @@ const lead = (over: Partial<LeadRecord> = {}): LeadRecord => ({
 });
 
 const config = (env: Partial<AppConfig["env"]> = {}): AppConfig =>
-  ({ env: { CLIENT_REPLY_ALERT_ENABLED: true, ...env } }) as unknown as AppConfig;
+  ({
+    env: {
+      CLIENT_REPLY_ALERT_ENABLED: true,
+      CLIENT_REPLY_ALERT_STATUSES: "IN_PROCESS,ON_HOLD,RESTORED",
+      ...env,
+    },
+  }) as unknown as AppConfig;
 
 function fakeBitrix(open: LeadActivity[] = []) {
   const created: AddLeadTodoInput[] = [];
@@ -122,6 +128,36 @@ describe("ClientReplyAlertService", () => {
 
     expect(await svc.notify(lead())).toBe("error");
     expect(await svc.notify(lead())).toBe("created");
+  });
+
+  it("avisa desde Conversación Inicial en adelante", async () => {
+    for (const statusId of ["IN_PROCESS", "ON_HOLD", "RESTORED"]) {
+      const { port } = fakeBitrix();
+      const svc = new ClientReplyAlertService(port, config(), () => AHORA);
+      expect(await svc.notify(lead({ statusId })), statusId).toBe("created");
+    }
+  });
+
+  it("no avisa en Nuevos ni en los intentos de contacto", async () => {
+    for (const statusId of ["NEW", "ASSIGNED", "CANNOT_CONTACT", "DETAILS"]) {
+      const { port } = fakeBitrix();
+      const svc = new ClientReplyAlertService(port, config(), () => AHORA);
+      expect(await svc.notify(lead({ statusId })), statusId).toBe("stage_not_alerted");
+      expect(port.listOpenLeadActivities).not.toHaveBeenCalled();
+    }
+  });
+
+  it("la campaña de reactivación queda fuera por defecto y se puede sumar por configuración", async () => {
+    const reactivacion = lead({ statusId: "UC_G1C4G0" });
+    const porDefecto = new ClientReplyAlertService(fakeBitrix().port, config(), () => AHORA);
+    expect(await porDefecto.notify(reactivacion)).toBe("stage_not_alerted");
+
+    const conReactivacion = new ClientReplyAlertService(
+      fakeBitrix().port,
+      config({ CLIENT_REPLY_ALERT_STATUSES: "IN_PROCESS, ON_HOLD, RESTORED, UC_G1C4G0" }),
+      () => AHORA,
+    );
+    expect(await conReactivacion.notify(reactivacion)).toBe("created");
   });
 
   it("formatea la fecha como la acepta Bitrix", () => {
