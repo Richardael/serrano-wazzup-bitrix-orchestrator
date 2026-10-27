@@ -28,6 +28,7 @@ export class AppConfig {
       NOTIFICATION_API_SECRET: configService.get("NOTIFICATION_API_SECRET"),
       NOTIFICATION_REPLY_WINDOW_HOURS: configService.get("NOTIFICATION_REPLY_WINDOW_HOURS"),
       NOTIFICATION_ROUTING_ENABLED: configService.get("NOTIFICATION_ROUTING_ENABLED"),
+      CLIENT_REPLY_ALERT_ENABLED: configService.get("CLIENT_REPLY_ALERT_ENABLED"),
     };
 
     const parsed = envSchema.parse(raw);

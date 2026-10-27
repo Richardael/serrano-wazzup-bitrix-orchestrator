@@ -57,6 +57,13 @@ export const envSchema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((v) => v === "true"),
+  // Cuando un cliente con lead activo escribe por WhatsApp, crea en el lead una
+  // actividad pendiente para que la tarjeta del Kanban muestre el contador. Se
+  // puede apagar sin redeploy de codigo.
+  CLIENT_REPLY_ALERT_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
   CONVERSATION_STATE_TTL_MINUTES: z.coerce.number().int().positive().default(1440),
 }).refine(
   (env) => Boolean(env.BOT_INTERNAL_BASE_URL) === Boolean(env.ORCHESTRATOR_SHARED_SECRET),

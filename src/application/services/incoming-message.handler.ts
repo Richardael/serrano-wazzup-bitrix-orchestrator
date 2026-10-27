@@ -20,6 +20,7 @@ import {
   pickWazzupNativeDuplicates,
   scheduleWazzupDuplicateSweep,
 } from "./wazzup-native-duplicates";
+import { ClientReplyAlertService } from "./client-reply-alert.service";
 
 const EVENT_RETENTION_WINDOW_MS = 5 * 60 * 1000;
 const PROVIDER = "WAZZUP";
@@ -68,6 +69,7 @@ export class IncomingMessageHandler {
     private readonly chatbot: ChatbotService,
     private readonly catalogChatbot: CatalogChatbotService,
     @Inject("WAZZUP_PORT") private readonly wazzupPort: WazzupPort,
+    private readonly replyAlert?: ClientReplyAlertService,
   ) {}
 
   async handle(
@@ -315,6 +317,9 @@ export class IncomingMessageHandler {
         `Reusing active lead ${activeLeads[0]!.id} for ${maskedPhone}`,
       );
       await this.bitrix24.updateLead(activeLeads[0]!.id, { contactId });
+      // El cliente volvió a escribir en un lead que ya existe: avisar en su
+      // tarjeta. Sin esperar, para no retrasar la respuesta a Wazzup.
+      void this.replyAlert?.notify(activeLeads[0]!);
       return { status: "lead_reused", eventId: activeLeads[0]!.id };
     }
 

@@ -10,6 +10,24 @@ export interface Bitrix24Port {
   updateLead(leadId: string, fields: LeadUpdateFields): Promise<void>;
   getLeadStatuses(): Promise<BitrixStatus[]>;
   getLeadSources(): Promise<BitrixStatus[]>;
+  /** Actividades sin completar del lead (llamadas, tareas, to-dos...). */
+  listOpenLeadActivities(leadId: string): Promise<LeadActivity[]>;
+  /** Crea una actividad pendiente ("to-do") en el lead. Devuelve su ID. */
+  addLeadTodo(input: AddLeadTodoInput): Promise<string>;
+}
+
+export interface LeadActivity {
+  readonly id: string;
+  readonly subject: string;
+}
+
+export interface AddLeadTodoInput {
+  leadId: string;
+  title: string;
+  description: string;
+  /** ISO 8601 con zona, p. ej. 2026-10-27T15:00:00+00:00. */
+  deadline: string;
+  responsibleId?: string;
 }
 
 export interface LeadUpdateFields {

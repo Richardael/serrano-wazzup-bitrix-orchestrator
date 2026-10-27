@@ -1,14 +1,19 @@
 import { Injectable } from "@nestjs/common";
 import { AppConfig } from "../config/app.config";
 import {
+  AddLeadTodoInput,
   Bitrix24Port,
   CreateLeadInput,
   BitrixStatus,
+  LeadActivity,
   LeadUpdateFields,
   UpsertContactInput,
 } from "../../application/ports/bitrix24.port";
 import { LeadRecord } from "../../domain/leads/lead";
 import { maskPhoneForLog, phoneLookupVariants } from "../config/phone-normalizer";
+
+/** Tipo de entidad "lead" en las actividades de Bitrix (crm.enum.ownertype). */
+const LEAD_OWNER_TYPE_ID = 1;
 
 interface BitrixResponse<T> {
   result: T;
@@ -211,6 +216,43 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
       name: s.NAME,
       semantics: s.EXTRA?.SEMANTICS ?? null,
     }));
+  }
+
+  async listOpenLeadActivities(leadId: string): Promise<LeadActivity[]> {
+    const data = await this.request<Array<Record<string, unknown>>>(
+      "crm.activity.list.json",
+      {
+        filter: { OWNER_TYPE_ID: LEAD_OWNER_TYPE_ID, OWNER_ID: leadId, COMPLETED: "N" },
+        select: ["ID", "SUBJECT"],
+      },
+    );
+    if (data.error) {
+      throw new Error(`Bitrix24 activity list error: ${data.error} - ${data.error_description}`);
+    }
+    return (data.result ?? []).map((a) => ({
+      id: String(a["ID"] ?? ""),
+      subject: String(a["SUBJECT"] ?? ""),
+    }));
+  }
+
+  async addLeadTodo(input: AddLeadTodoInput): Promise<string> {
+    const data = await this.request<{ id?: number | string } | null>(
+      "crm.activity.todo.add.json",
+      {
+        ownerTypeId: LEAD_OWNER_TYPE_ID,
+        ownerId: input.leadId,
+        deadline: input.deadline,
+        title: input.title,
+        description: input.description,
+        ...(input.responsibleId ? { responsibleId: input.responsibleId } : {}),
+      },
+    );
+    if (data.error || !data.result?.id) {
+      throw new Error(
+        `Bitrix24 todo add error: ${data.error ?? "sin id"} - ${data.error_description ?? ""}`,
+      );
+    }
+    return String(data.result.id);
   }
 
   private async request<T>(

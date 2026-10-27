@@ -31,6 +31,7 @@ import { WAZZUP_PORT } from "./application/ports/wazzup.port";
 import { NOTIFICATION_MARKER_REPOSITORY } from "./application/ports/notification-marker.port";
 import { PgNotificationMarkerRepository } from "./infrastructure/database/repositories/pg-notification-marker.repository";
 import { NotificationRoutingService } from "./application/services/notification-routing.service";
+import { ClientReplyAlertService } from "./application/services/client-reply-alert.service";
 import { NotificationMarkerController } from "./interfaces/internal/notification-marker.controller";
 
 const BITRIX24_PORT = "BITRIX24_PORT";
@@ -130,6 +131,7 @@ const CONVERSATION_STATE = "CONVERSATION_STATE";
         chatbot: ChatbotService,
         catalogChatbot: CatalogChatbotService,
         wazzup: WazzupHttpAdapter,
+        replyAlert: ClientReplyAlertService,
       ) =>
         new IncomingMessageHandler(
           config,
@@ -140,6 +142,7 @@ const CONVERSATION_STATE = "CONVERSATION_STATE";
           chatbot,
           catalogChatbot,
           wazzup,
+          replyAlert,
         ),
       inject: [
         AppConfig,
@@ -150,7 +153,14 @@ const CONVERSATION_STATE = "CONVERSATION_STATE";
         ChatbotService,
         CatalogChatbotService,
         WAZZUP_PORT,
+        ClientReplyAlertService,
       ],
+    },
+    {
+      provide: ClientReplyAlertService,
+      useFactory: (config: AppConfig, bitrix24: Bitrix24HttpAdapter) =>
+        new ClientReplyAlertService(bitrix24, config),
+      inject: [AppConfig, BITRIX24_PORT],
     },
     MessageWorker,
     MigrationRunner,
