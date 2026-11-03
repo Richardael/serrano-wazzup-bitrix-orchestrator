@@ -69,6 +69,10 @@ export const envSchema = z.object({
   // Informacion Adicional y Calificacion Preliminar. La campana de reactivacion
   // (UC_G1C4G0) se puede sumar aqui sin tocar codigo.
   CLIENT_REPLY_ALERT_STATUSES: z.string().default("IN_PROCESS,ON_HOLD,RESTORED"),
+  // Etapas del lead en las que el bot no le contesta al cliente porque ya lo
+  // atiende una vendedora: Conversacion Inicial, Informacion Adicional,
+  // Calificacion Preliminar y Campana de reactivacion. Vacia, el bot contesta siempre.
+  BOT_SILENT_STATUSES: z.string().default("IN_PROCESS,ON_HOLD,RESTORED,UC_G1C4G0"),
   CONVERSATION_STATE_TTL_MINUTES: z.coerce.number().int().positive().default(1440),
 }).refine(
   (env) => Boolean(env.BOT_INTERNAL_BASE_URL) === Boolean(env.ORCHESTRATOR_SHARED_SECRET),

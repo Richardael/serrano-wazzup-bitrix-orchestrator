@@ -1,6 +1,7 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { AppConfig } from "../config/app.config";
 import { BotInboundWazzupPayload } from "../../interfaces/internal/bot-integration.contract";
+import { BotSilenceService } from "../../application/services/bot-silence.service";
 
 @Injectable()
 export class BotInboundRelayService {
@@ -8,13 +9,14 @@ export class BotInboundRelayService {
 
   constructor(
     private readonly config: AppConfig,
+    @Optional() private readonly silence?: BotSilenceService,
     @Optional() private readonly fetchFn: typeof fetch = fetch,
   ) {}
 
   async relayInbound(payload: Record<string, unknown>): Promise<void> {
     if (!this.config.env.BOT_INTERNAL_BASE_URL) return;
 
-    const messages = Array.isArray(payload["messages"])
+    const inbound = Array.isArray(payload["messages"])
       ? payload["messages"]
           .filter(
             (message): message is Record<string, unknown> =>
@@ -25,6 +27,7 @@ export class BotInboundRelayService {
           )
           .map((message) => this.withProfileName(message, payload))
       : [];
+    const messages = await this.withoutSellerChats(inbound);
     if (messages.length === 0) return;
 
     const { statuses: _statuses, ...rawInboundPayload } = payload;
@@ -68,6 +71,32 @@ export class BotInboundRelayService {
     this.logger.warn(
       `Bot relay failed after retries: ${lastError?.message ?? "unknown error"}`,
     );
+  }
+
+  /** Quita los mensajes de clientes que ya atiende una vendedora. */
+  private async withoutSellerChats(
+    messages: Record<string, unknown>[],
+  ): Promise<Record<string, unknown>[]> {
+    if (!this.silence || messages.length === 0) return messages;
+    const porChat = new Map<string, Promise<string | null>>();
+    const out: Record<string, unknown>[] = [];
+    for (const message of messages) {
+      const chatType = String(message["chatType"] ?? "");
+      const chatId = String(message["chatId"] ?? "");
+      // Solo WhatsApp: en Instagram el chatId no es un teléfono.
+      if (!chatId || (chatType !== "whatsapp" && chatType !== "wapi")) {
+        out.push(message);
+        continue;
+      }
+      if (!porChat.has(chatId)) porChat.set(chatId, this.silence.leadAtendido(chatId));
+      const leadId = await porChat.get(chatId)!;
+      if (leadId) {
+        this.logger.log(`Bot en silencio: el lead ${leadId} ya lo atiende una vendedora`);
+        continue;
+      }
+      out.push(message);
+    }
+    return out;
   }
 
   private withProfileName(

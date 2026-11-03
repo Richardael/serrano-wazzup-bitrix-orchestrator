@@ -12,7 +12,7 @@ describe("BotInboundRelayService", () => {
     const fetchFn = vi
       .fn()
       .mockResolvedValue(new Response("", { status: 200 }));
-    const service = new BotInboundRelayService(config, fetchFn);
+    const service = new BotInboundRelayService(config, undefined, fetchFn);
     const inbound = { messageId: "inbound-1", status: "inbound", text: "Hola" };
 
     await service.relayInbound({
@@ -35,7 +35,7 @@ describe("BotInboundRelayService", () => {
 
   it("does not forward payloads containing only outbound or echo messages", async () => {
     const fetchFn = vi.fn();
-    const service = new BotInboundRelayService(config, fetchFn);
+    const service = new BotInboundRelayService(config, undefined, fetchFn);
 
     await service.relayInbound({
       messages: [
@@ -51,7 +51,7 @@ describe("BotInboundRelayService", () => {
     const fetchFn = vi
       .fn()
       .mockResolvedValue(new Response("", { status: 200 }));
-    const service = new BotInboundRelayService(config, fetchFn);
+    const service = new BotInboundRelayService(config, undefined, fetchFn);
 
     await service.relayInbound({
       chat: { name: "Brayan Gamboa" },
@@ -72,7 +72,7 @@ describe("BotInboundRelayService", () => {
 
   it("reads the profile name from the native message contact", async () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response("", { status: 200 }));
-    const service = new BotInboundRelayService(config, fetchFn);
+    const service = new BotInboundRelayService(config, undefined, fetchFn);
 
     await service.relayInbound({
       messages: [{ messageId: "inbound-3", status: "inbound", text: "Hola", contact: { name: "Ana Native" } }],
@@ -90,7 +90,7 @@ describe("BotInboundRelayService", () => {
 
   it("relays native inbound messages identified by direction or type", async () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response("", { status: 200 }));
-    const service = new BotInboundRelayService(config, fetchFn);
+    const service = new BotInboundRelayService(config, undefined, fetchFn);
 
     await service.relayInbound({
       messages: [

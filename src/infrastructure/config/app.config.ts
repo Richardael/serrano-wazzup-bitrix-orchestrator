@@ -30,6 +30,7 @@ export class AppConfig {
       NOTIFICATION_ROUTING_ENABLED: configService.get("NOTIFICATION_ROUTING_ENABLED"),
       CLIENT_REPLY_ALERT_ENABLED: configService.get("CLIENT_REPLY_ALERT_ENABLED"),
       CLIENT_REPLY_ALERT_STATUSES: configService.get("CLIENT_REPLY_ALERT_STATUSES"),
+      BOT_SILENT_STATUSES: configService.get("BOT_SILENT_STATUSES"),
     };
 
     const parsed = envSchema.parse(raw);
