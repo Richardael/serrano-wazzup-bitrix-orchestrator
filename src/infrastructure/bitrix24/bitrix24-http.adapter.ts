@@ -223,7 +223,7 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
       "crm.activity.list.json",
       {
         filter: { OWNER_TYPE_ID: LEAD_OWNER_TYPE_ID, OWNER_ID: leadId, COMPLETED: "N" },
-        select: ["ID", "SUBJECT"],
+        select: ["ID", "SUBJECT", "DESCRIPTION"],
       },
     );
     if (data.error) {
@@ -232,20 +232,14 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
     return (data.result ?? []).map((a) => ({
       id: String(a["ID"] ?? ""),
       subject: String(a["SUBJECT"] ?? ""),
+      description: String(a["DESCRIPTION"] ?? ""),
     }));
   }
 
   async addLeadTodo(input: AddLeadTodoInput): Promise<string> {
     const data = await this.request<{ id?: number | string } | null>(
       "crm.activity.todo.add.json",
-      {
-        ownerTypeId: LEAD_OWNER_TYPE_ID,
-        ownerId: input.leadId,
-        deadline: input.deadline,
-        title: input.title,
-        description: input.description,
-        ...(input.responsibleId ? { responsibleId: input.responsibleId } : {}),
-      },
+      todoParams(input),
     );
     if (data.error || !data.result?.id) {
       throw new Error(
@@ -253,6 +247,36 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
       );
     }
     return String(data.result.id);
+  }
+
+  async updateLeadTodo(activityId: string, input: AddLeadTodoInput): Promise<void> {
+    const data = await this.request<{ id?: number | string } | null>(
+      "crm.activity.todo.update.json",
+      { id: activityId, ...todoParams(input) },
+    );
+    if (data.error) {
+      throw new Error(`Bitrix24 todo update error: ${data.error} - ${data.error_description ?? ""}`);
+    }
+  }
+
+  async completeActivity(activityId: string): Promise<void> {
+    const data = await this.request<boolean>("crm.activity.update.json", {
+      id: activityId,
+      fields: { COMPLETED: "Y" },
+    });
+    if (data.error || data.result !== true) {
+      throw new Error(`Bitrix24 activity complete error: ${data.error ?? "sin resultado"} - ${data.error_description ?? ""}`);
+    }
+  }
+
+  async notifyUser(userId: string, message: string): Promise<void> {
+    const data = await this.request<number>("im.notify.system.add.json", {
+      USER_ID: userId,
+      MESSAGE: message,
+    });
+    if (data.error) {
+      throw new Error(`Bitrix24 notify error: ${data.error} - ${data.error_description ?? ""}`);
+    }
   }
 
   private async request<T>(
@@ -371,4 +395,15 @@ export class Bitrix24HttpAdapter implements Bitrix24Port {
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+}
+
+function todoParams(input: AddLeadTodoInput): Record<string, unknown> {
+  return {
+    ownerTypeId: LEAD_OWNER_TYPE_ID,
+    ownerId: input.leadId,
+    deadline: input.deadline,
+    title: input.title,
+    description: input.description,
+    ...(input.responsibleId ? { responsibleId: input.responsibleId } : {}),
+  };
 }

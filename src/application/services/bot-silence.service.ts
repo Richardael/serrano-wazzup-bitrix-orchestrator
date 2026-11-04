@@ -11,7 +11,7 @@ import { parseAlertStatuses } from "./client-reply-alert.service";
  * lo movió una vendedora o el reparto automático de Viewer, el bot ve un chat
  * nuevo, abre su menú y le contesta a un cliente que ya está hablando con una
  * persona. Por eso se mira la etapa del lead en Bitrix antes de reenviarle el
- * mensaje: de "Conversación Inicial" en adelante (`BOT_SILENT_STATUSES`) el
+ * mensaje: de "Hablar con asesor" en adelante (`BOT_SILENT_STATUSES`) el
  * cliente es de la vendedora.
  *
  * Si Bitrix no responde, el bot sigue contestando como siempre: es preferible a

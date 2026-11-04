@@ -64,15 +64,18 @@ export const envSchema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((v) => v === "true"),
-  // Etapas del lead en las que se avisa (STATUS_ID separados por coma). Por
-  // defecto, de "Conversacion Inicial" en adelante: Conversacion Inicial,
-  // Informacion Adicional y Calificacion Preliminar. La campana de reactivacion
-  // (UC_G1C4G0) se puede sumar aqui sin tocar codigo.
-  CLIENT_REPLY_ALERT_STATUSES: z.string().default("IN_PROCESS,ON_HOLD,RESTORED"),
-  // Etapas del lead en las que el bot no le contesta al cliente porque ya lo
-  // atiende una vendedora: Conversacion Inicial, Informacion Adicional,
-  // Calificacion Preliminar y Campana de reactivacion. Vacia, el bot contesta siempre.
-  BOT_SILENT_STATUSES: z.string().default("IN_PROCESS,ON_HOLD,RESTORED,UC_G1C4G0"),
+  // Etapas del lead que ya atiende una vendedora (STATUS_ID separados por
+  // coma): Hablar con asesor (UC_HABLAR_ASESOR, leads de Instagram que piden
+  // asesor), Conversacion Inicial, Informacion Adicional, Calificacion
+  // Preliminar y Campana de reactivacion. En ellas se avisa a la vendedora
+  // cuando el cliente escribe...
+  CLIENT_REPLY_ALERT_STATUSES: z
+    .string()
+    .default("UC_HABLAR_ASESOR,IN_PROCESS,ON_HOLD,RESTORED,UC_G1C4G0"),
+  // ...y el bot no le contesta. Vacia, el bot contesta siempre.
+  BOT_SILENT_STATUSES: z
+    .string()
+    .default("UC_HABLAR_ASESOR,IN_PROCESS,ON_HOLD,RESTORED,UC_G1C4G0"),
   CONVERSATION_STATE_TTL_MINUTES: z.coerce.number().int().positive().default(1440),
 }).refine(
   (env) => Boolean(env.BOT_INTERNAL_BASE_URL) === Boolean(env.ORCHESTRATOR_SHARED_SECRET),

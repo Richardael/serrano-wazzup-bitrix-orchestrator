@@ -5,6 +5,19 @@ import { BotInboundRelayService } from "../../infrastructure/bot/bot-inbound-rel
 import { AppConfig } from "../../infrastructure/config/app.config";
 import { bearerTokenMatches } from "../../infrastructure/security/secret-comparison";
 import { NotificationRoutingService } from "../../application/services/notification-routing.service";
+import { ClientReplyAlertService } from "../../application/services/client-reply-alert.service";
+
+const conTexto = (v: unknown) => typeof v === "string" ? v.trim() !== "" : typeof v === "number";
+
+/**
+ * Mensaje que una vendedora le mandó al cliente desde Wazzup. Wazzup marca los
+ * salientes con `isEcho` y, si salen de su chat, con `sentFromApp` o el usuario
+ * de la CRM que lo escribió (`authorId`). El bot y la plantilla de bienvenida
+ * mandan por API sin usuario: no cuentan.
+ */
+export function isVendorReply(msg: Record<string, unknown>): boolean {
+  return msg["isEcho"] === true && (msg["sentFromApp"] === true || conTexto(msg["authorId"]));
+}
 
 @Controller("wazzup-ingest")
 export class WazzupIngestController {
@@ -15,6 +28,7 @@ export class WazzupIngestController {
     private readonly botRelay: BotInboundRelayService,
     private readonly config: AppConfig,
     @Optional() private readonly notifications?: NotificationRoutingService,
+    @Optional() private readonly replyAlert?: ClientReplyAlertService,
   ) {}
 
   @Post()
@@ -78,6 +92,11 @@ export class WazzupIngestController {
           this.logger.log(`Message keys: ${Object.keys(msg).join(", ")}`);
 
           if (suppressed.has(msg)) continue;
+          // La vendedora contestó: su alerta de "el cliente respondió" ya no hace falta.
+          if (this.replyAlert && isVendorReply(msg)) {
+            void this.replyAlert.resolve(String(msg["chatId"] ?? msg["chat_id"] ?? ""));
+            continue;
+          }
           if (!this.shouldProcess(msg)) {
             this.logger.log(`Skipping message (outbound/echo/duplicate)`);
             continue;

@@ -14,11 +14,21 @@ export interface Bitrix24Port {
   listOpenLeadActivities(leadId: string): Promise<LeadActivity[]>;
   /** Crea una actividad pendiente ("to-do") en el lead. Devuelve su ID. */
   addLeadTodo(input: AddLeadTodoInput): Promise<string>;
+  /**
+   * Reescribe un to-do del lead. Bitrix borra lo que no se manda (el título
+   * incluido), así que van todos los campos.
+   */
+  updateLeadTodo(activityId: string, input: AddLeadTodoInput): Promise<void>;
+  /** Marca una actividad como completada. */
+  completeActivity(activityId: string): Promise<void>;
+  /** Notificación de sistema (la campana de Bitrix) a un usuario. Admite BBCode. */
+  notifyUser(userId: string, message: string): Promise<void>;
 }
 
 export interface LeadActivity {
   readonly id: string;
   readonly subject: string;
+  readonly description: string;
 }
 
 export interface AddLeadTodoInput {
